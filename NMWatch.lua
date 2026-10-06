@@ -323,10 +323,12 @@ local function update_hud()
 
     local target = selected_target()
     if target and target.id and target.id > 0 then
+        local target_name = match_mob(target, zone_info())
         local target_line = ('Target: %s | Hex ID=0x%03X | ID=%u'):format(
             target.name or 'Unknown', target.index or 0, target.id)
         table.insert(lines, target_line)
         target_lines[2] = target_line
+        if target_name then target_text:color(80, 255, 120) else target_text:color(255, 120, 80) end
     end
 
     if #active_list > 0 then
