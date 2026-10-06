@@ -54,11 +54,13 @@ link_settings.flags.italic = settings.hud.flags.italic
 local link_text = texts.new('', link_settings)
 local drop_text = texts.new('', link_settings)
 local zone_text = texts.new('', link_settings)
+local target_text = texts.new('', link_settings)
 active_icons:color(80, 255, 80)
 inactive_icons:color(255, 80, 80)
 link_text:color(100, 200, 255)
 drop_text:color(255, 210, 80)
 zone_text:color(255, 80, 255)
+target_text:color(255, 120, 80)
 local seen = {}
 local active = {}
 local recent = {}
@@ -267,6 +269,7 @@ local function update_hud()
         link_text:hide()
         drop_text:hide()
         zone_text:hide()
+        target_text:hide()
         return
     end
 
@@ -284,6 +287,7 @@ local function update_hud()
     local link_lines = {}
     local drop_lines = {}
     local zone_lines = {}
+    local target_lines = {}
     hud_link_rows = {}
     local lines = {
         ('NMWatch %s  range=%dy'):format(state, settings.range),
@@ -292,12 +296,15 @@ local function update_hud()
     zone_lines[2] = zone_name
 
     local target = selected_target()
+    local target_line
     if target and target.id and target.id > 0 then
-        table.insert(lines, ('Target: %s | Hex ID=0x%03X | ID=%u'):format(
-            target.name or 'Unknown', target.index or 0, target.id))
+        target_line = ('Target: %s | Hex ID=0x%03X | ID=%u'):format(
+            target.name or 'Unknown', target.index or 0, target.id)
     else
-        table.insert(lines, 'Target: none')
+        target_line = 'Target: none'
     end
+    table.insert(lines, target_line)
+    target_lines[3] = target_line
 
     if #active_list > 0 then
         table.insert(lines, ('Nearby (%d):'):format(#active_list))
@@ -345,6 +352,7 @@ local function update_hud()
         link_lines[i] = link_lines[i] or ' '
         drop_lines[i] = drop_lines[i] or ' '
         zone_lines[i] = zone_lines[i] or ' '
+        target_lines[i] = target_lines[i] or ' '
     end
     hud_line_count = #lines
 
@@ -354,12 +362,14 @@ local function update_hud()
     link_text:text(table.concat(link_lines, '\n'))
     drop_text:text(table.concat(drop_lines, '\n'))
     zone_text:text(table.concat(zone_lines, '\n'))
+    target_text:text(table.concat(target_lines, '\n'))
     local hud_x, hud_y = hud:pos()
     active_icons:pos(hud_x, hud_y)
     inactive_icons:pos(hud_x, hud_y)
     link_text:pos(hud_x, hud_y)
     drop_text:pos(hud_x, hud_y)
     zone_text:pos(hud_x, hud_y)
+    target_text:pos(hud_x, hud_y)
     if os.clock() < alert_until then
         hud:bg_color(120, 0, 0)
         hud:bg_alpha(220)
@@ -373,6 +383,7 @@ local function update_hud()
     if settings.wiki_links then link_text:show() else link_text:hide() end
     drop_text:show()
     zone_text:show()
+    target_text:show()
 end
 
 local function hud_line_at(x, y)
@@ -408,6 +419,7 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
         link_text:pos(x - hud_drag.x, y - hud_drag.y)
         drop_text:pos(x - hud_drag.x, y - hud_drag.y)
         zone_text:pos(x - hud_drag.x, y - hud_drag.y)
+        target_text:pos(x - hud_drag.x, y - hud_drag.y)
         return true
     elseif type == 2 then
         if pending_link then
