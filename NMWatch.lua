@@ -304,15 +304,12 @@ local function update_hud()
     zone_lines[1] = ('%42s%s'):format('', zone_name)
 
     local target = selected_target()
-    local target_line
     if target and target.id and target.id > 0 then
-        target_line = ('Target: %s | Hex ID=0x%03X | ID=%u'):format(
+        local target_line = ('Target: %s | Hex ID=0x%03X | ID=%u'):format(
             target.name or 'Unknown', target.index or 0, target.id)
-    else
-        target_line = 'Target: none'
+        table.insert(lines, target_line)
+        target_lines[2] = target_line
     end
-    table.insert(lines, target_line)
-    target_lines[2] = target_line
 
     if #active_list > 0 then
         table.insert(lines, ('Nearby (%d):'):format(#active_list))
