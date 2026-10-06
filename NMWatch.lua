@@ -61,7 +61,7 @@ inactive_icons:color(255, 80, 80)
 link_text:color(100, 200, 255)
 drop_text:color(255, 210, 80)
 zone_text:color(255, 80, 255)
-target_text:color(255, 120, 80)
+target_text:color(210, 150, 255)
 alert_text:color(255, 80, 80)
 local seen = {}
 local active = {}
@@ -164,6 +164,15 @@ local function match_source(name, source)
     return pop_type and (source .. ', ' .. pop_type) or source
 end
 
+local function relative_direction(player, mob)
+    local dx = (mob.x or 0) - (player.x or 0)
+    local dy = (mob.y or 0) - (player.y or 0)
+    local direction = ''
+    if math.abs(dy) >= 1 then direction = direction .. (dy > 0 and 'N' or 'S') end
+    if math.abs(dx) >= 1 then direction = direction .. (dx > 0 and 'E' or 'W') end
+    return direction ~= '' and direction or 'here'
+end
+
 local function match_mob(mob, zone_id, zone_name)
     local exact_name = custom_name(zone_id, mob.index)
     if exact_name then
@@ -224,10 +233,6 @@ local function scan()
                 last_seen[zone_name:lower()][defeated_name] = nil
             end
         end
-        local known_name, known_source
-        if mob and mob.id and mob.index then
-            known_name, known_source = match_mob(mob, zone_id, zone_name)
-        end
         local known_placeholder = nm_data.placeholder_ids[zone_id]
             and nm_data.placeholder_ids[zone_id][mob and mob.index]
         if mob and mob.id and mob.id > 0 and mob.index
@@ -239,7 +244,7 @@ local function scan()
             local dz = (mob.z or 0) - (player.z or 0)
             local distance_sq = dx * dx + dy * dy + dz * dz
             if distance_sq <= range_sq then
-                local name, source = known_name, known_source
+                local name, source = match_mob(mob, zone_id, zone_name)
                 if name then
                     local match = {
                         id = mob.id,
@@ -247,6 +252,7 @@ local function scan()
                         name = mob.name or name,
                         source = source,
                         distance = math.sqrt(distance_sq),
+                        x = mob.x, y = mob.y, z = mob.z,
                     }
                     found[mob.id] = match
                     last_seen[zone_name:lower()] = last_seen[zone_name:lower()] or {}
@@ -355,7 +361,7 @@ local function update_hud()
             target.name or 'Unknown', target.index or 0, target.id)
         table.insert(lines, target_line)
         target_lines[2] = target_line
-        if target_name then target_text:color(210, 150, 255) else target_text:color(255, 120, 80) end
+        if target_name then target_text:color(80, 255, 120) else target_text:color(210, 150, 255) end
     end
 
     if #active_list > 0 then
@@ -363,7 +369,9 @@ local function update_hud()
     end
     for i = 1, math.min(#active_list, settings.hud.max_shown) do
         local match = active_list[i]
-        local nearby_line = ('  %s [0x%03X] %.1fy'):format(match.name, match.index, match.distance)
+        local nearby_line = ('  %s [0x%03X] %.1fy %s (%.1f, %.1f, %.1f)'):format(
+            match.name, match.index, match.distance, relative_direction(player, match),
+            match.x or 0, match.y or 0, match.z or 0)
         table.insert(lines, nearby_line)
         if alert_mob_ids[match.id] or (match.source and match.source:find('placeholder ID', 1, true)) then
             alert_lines[#lines] = nearby_line
@@ -372,7 +380,9 @@ local function update_hud()
     for i = settings.hud.max_shown + 1, #active_list do
         local match = active_list[i]
         if alert_mob_ids[match.id] or (match.source and match.source:find('placeholder ID', 1, true)) then
-            local nearby_line = ('  %s [0x%03X] %.1fy'):format(match.name, match.index, match.distance)
+            local nearby_line = ('  %s [0x%03X] %.1fy %s (%.1f, %.1f, %.1f)'):format(
+                match.name, match.index, match.distance, relative_direction(player, match),
+                match.x or 0, match.y or 0, match.z or 0)
             table.insert(lines, nearby_line)
             alert_lines[#lines] = nearby_line
         end
