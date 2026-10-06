@@ -18,14 +18,13 @@ the bundled NM name/zone list is used as a fallback.
 Target an NM and save its exact zone-local ID:
 
 ```text
-//nmw id
 //nmw add
 ```
 
-The ID is the same `mob.index` hex value displayed by this installation's
-TargetInfo addon. Saved IDs persist in `data/settings.xml` and are scoped by
-zone. `//nmw remove` removes the currently targeted ID; `//nmw list` prints the
-saved IDs for the current zone.
+The selected mob's TargetInfo hex ID and full ID are visible in the HUD. Saved
+IDs persist in `data/settings.xml` and are scoped by zone. `//nmw remove`
+removes the currently targeted ID; `//nmw list` prints the saved IDs for the
+current zone.
 
 ## Matching
 
@@ -80,7 +79,6 @@ start or cancel objectives.
 | Command | Purpose |
 |---|---|
 | `//nmw on`, `off`, `toggle` | Control scanning |
-| `//nmw id` | Show the target's name, zone, hex index, and full ID |
 | `//nmw add` | Save the targeted zone/index as an exact NM ID |
 | `//nmw remove` | Remove the targeted zone/index |
 | `//nmw list` | List exact IDs saved for this zone |

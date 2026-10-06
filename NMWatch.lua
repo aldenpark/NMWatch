@@ -461,17 +461,6 @@ local function target_mob()
     return selected_target()
 end
 
-local function show_target_id()
-    local mob = target_mob()
-    local zone_id, zone_name = zone_info()
-    if not mob or not mob.id or mob.id <= 0 then
-        chat('no valid target')
-        return
-    end
-    chat(('%s | %s (%d) | index=0x%03X | full=%u')
-        :format(mob.name or 'Unknown', zone_name, zone_id, mob.index, mob.id))
-end
-
 local function add_target()
     local mob = target_mob()
     local zone_id = zone_info()
@@ -563,8 +552,6 @@ windower.register_event('addon command', function(cmd, ...)
         add_target()
     elseif cmd == 'remove' then
         remove_target()
-    elseif cmd == 'id' then
-        show_target_id()
     elseif cmd == 'list' then
         list_ids()
     elseif cmd == 'clear' then
@@ -623,7 +610,7 @@ windower.register_event('addon command', function(cmd, ...)
                 tostring(settings.wiki_fallback), tostring(settings.wiki_links), tostring(settings.sound),
                 tostring(settings.hud.visible), settings.hud.bg.alpha))
     elseif cmd == 'help' then
-        chat('on|off|toggle, add, remove, id, list, clear, range <y>, wiki, links [on|off], hud, alpha <0-255>, sound, soundfile <path>, test [name], status')
+        chat('on|off|toggle, add, remove, list, clear, range <y>, wiki, links [on|off], hud, alpha <0-255>, sound, soundfile <path>, test [name], status')
     else
         chat('unknown command - type //nmw help')
     end
