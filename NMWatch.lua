@@ -225,7 +225,8 @@ local function scan()
             end
         end
         if mob and mob.id and mob.id > 0 and mob.index
-            and mob.spawn_type == 16 and mob.valid_target
+            and (mob.spawn_type == 16 or (nm_data.placeholder_ids[zone_id]
+                and nm_data.placeholder_ids[zone_id][mob.index])) and mob.valid_target
             and mob.hpp and mob.hpp > 0
         then
             local dx = (mob.x or 0) - (player.x or 0)
