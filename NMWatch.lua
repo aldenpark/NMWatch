@@ -339,8 +339,9 @@ local function update_hud()
     for _, name in ipairs(zone_nms) do
         local row_line = #lines + 1
         local seen_at = last_seen[zone_name:lower()] and last_seen[zone_name:lower()][name]
-        local seen_label = seen_at and os.date('%Y-%m-%d %H:%M:%S', seen_at) or 'never'
-        table.insert(lines, ('       %s [%s] | Last seen: %s'):format(
+        local seen_label = seen_at and os.time() - seen_at <= 86400
+            and (' | Last seen: ' .. os.date('%Y-%m-%d %H:%M:%S', seen_at)) or ''
+        table.insert(lines, ('       %s [%s]%s'):format(
             name, nm_data.spawn_types[name] or 'unknown', seen_label))
         if settings.wiki_links then link_lines[row_line] = '       ' .. name end
         local objective_id = roe_nms[name]
