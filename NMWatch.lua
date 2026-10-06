@@ -230,7 +230,9 @@ local function scan()
                     }
                     found[mob.id] = match
                     last_seen[zone_name:lower()] = last_seen[zone_name:lower()] or {}
-                    last_seen[zone_name:lower()][name] = os.time()
+                    last_seen[zone_name:lower()][name] = {
+                        time = os.time(), x = mob.x, y = mob.y, z = mob.z,
+                    }
                     if not seen[mob.id] then
                         notify(match)
                     end
@@ -292,6 +294,7 @@ local function update_hud()
     local zone_nms = nm_data.names[zone_name:lower()] or {}
     local zone_details = nm_data.spawn_details[zone_name:lower()] or {}
     local zone_drops = nm_data.drops[zone_name:lower()] or {}
+    local player = windower.ffxi.get_mob_by_target('me')
     local active_list = {}
     for _, match in pairs(active) do table.insert(active_list, match) end
     table.sort(active_list, function(a, b) return a.distance < b.distance end)
@@ -336,9 +339,14 @@ local function update_hud()
     table.insert(lines, 'Zone NMs:')
     for _, name in ipairs(zone_nms) do
         local row_line = #lines + 1
-        local seen_at = last_seen[zone_name:lower()] and last_seen[zone_name:lower()][name]
-        local seen_label = seen_at and os.time() - seen_at <= 86400
-            and (' | Last seen: ' .. os.date('%Y-%m-%d %H:%M:%S', seen_at)) or ''
+        local seen = last_seen[zone_name:lower()] and last_seen[zone_name:lower()][name]
+        local seen_label = ''
+        if seen and os.time() - seen.time <= 86400 then
+            local distance = player and seen.x and seen.y and seen.z
+                and math.sqrt((seen.x - player.x)^2 + (seen.y - player.y)^2 + (seen.z - player.z)^2)
+            seen_label = ' | Last seen: ' .. os.date('%Y-%m-%d %H:%M:%S', seen.time)
+            if distance then seen_label = seen_label .. (' | last spot: %.1fy'):format(distance) end
+        end
         table.insert(lines, ('       %s [%s]%s'):format(
             name, nm_data.spawn_types[name] or 'unknown', seen_label))
         if settings.wiki_links then link_lines[row_line] = '       ' .. name end
