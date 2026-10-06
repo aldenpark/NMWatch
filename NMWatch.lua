@@ -355,6 +355,14 @@ local function update_hud()
             alert_lines[#lines] = nearby_line
         end
     end
+    for i = settings.hud.max_shown + 1, #active_list do
+        local match = active_list[i]
+        if alert_mob_ids[match.id] or (match.source and match.source:find('placeholder ID', 1, true)) then
+            local nearby_line = ('  %s [0x%03X] %.1fy'):format(match.name, match.index, match.distance)
+            table.insert(lines, nearby_line)
+            alert_lines[#lines] = nearby_line
+        end
+    end
     if #active_list == 0 and #recent > 0 then
         table.insert(lines, 'Last: ' .. recent[1].name)
     end
