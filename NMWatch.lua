@@ -351,7 +351,7 @@ local function update_hud()
         local match = active_list[i]
         local nearby_line = ('  %s [0x%03X] %.1fy'):format(match.name, match.index, match.distance)
         table.insert(lines, nearby_line)
-        if alert_mob_ids[match.id] then
+        if alert_mob_ids[match.id] or (match.source and match.source:find('placeholder ID', 1, true)) then
             alert_lines[#lines] = nearby_line
         end
     end
