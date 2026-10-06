@@ -1,0 +1,70 @@
+<?xml version="1.1" ?>
+<settings>
+    <global>
+        <chat_color>200</chat_color>
+        <custom_ids>
+
+        </custom_ids>
+        <enabled>false</enabled>
+        <hud>
+            <bg>
+                <alpha>100</alpha>
+                <blue>0</blue>
+                <green>0</green>
+                <red>0</red>
+                <visible>true</visible>
+            </bg>
+            <flags>
+                <bold>false</bold>
+                <bottom>false</bottom>
+                <draggable>true</draggable>
+                <italic>false</italic>
+                <right>false</right>
+            </flags>
+            <max_shown>8</max_shown>
+            <padding>4</padding>
+            <pos>
+                <x>10</x>
+                <y>300</y>
+            </pos>
+            <text>
+                <alpha>255</alpha>
+                <blue>255</blue>
+                <font>Consolas</font>
+                <fonts>
+
+                </fonts>
+                <green>255</green>
+                <red>255</red>
+                <size>11</size>
+                <stroke>
+                    <alpha>255</alpha>
+                    <blue>0</blue>
+                    <green>0</green>
+                    <red>0</red>
+                    <width>0</width>
+                </stroke>
+            </text>
+            <visible>true</visible>
+        </hud>
+        <range>50</range>
+        <scan_interval>1</scan_interval>
+        <sound>true</sound>
+        <sound_file />
+        <wiki_fallback>true</wiki_fallback>
+        <wiki_links>true</wiki_links>
+    </global>
+    <yurinde>
+        <hud>
+            <pos>
+                <x>2656</x>
+                <y>267</y>
+            </pos>
+            <text>
+                <fonts>
+
+                </fonts>
+            </text>
+        </hud>
+    </yurinde>
+</settings>
