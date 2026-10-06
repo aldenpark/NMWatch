@@ -73,6 +73,7 @@ local alert_until = 0
 local alert_mob_id = nil
 local wiki_cache = {}
 local active_roe = {}
+local completed_roe = {}
 local hud_link_rows = {}
 local hud_line_count = 0
 local hud_drag = nil
@@ -111,6 +112,8 @@ local function update_roe(data)
         local objective_id = parsed[('RoE Quest ID %d'):format(i)]
         if objective_id and objective_id > 0 then
             current[objective_id] = true
+            local progress = parsed[('RoE Quest Progress %d'):format(i)]
+            if progress and progress > 0 then completed_roe[objective_id] = true end
         end
     end
     active_roe = current
@@ -341,7 +344,7 @@ local function update_hud()
         if settings.wiki_links then link_lines[row_line] = '       ' .. name end
         local objective_id = roe_nms[name]
         if objective_id then
-            if active_roe[objective_id] then
+            if active_roe[objective_id] or completed_roe[objective_id] then
                 active_marker_lines[#lines] = true
             else
                 inactive_marker_lines[#lines] = true
