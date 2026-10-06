@@ -343,6 +343,14 @@ local function update_hud()
     local target = selected_target()
     if target and target.id and target.id > 0 then
         local target_name = match_mob(target, zone_info())
+        if not target_name then
+            for _, match in pairs(active) do
+                if match.id == target.id then
+                    target_name = match.name
+                    break
+                end
+            end
+        end
         local target_line = ('Target: %s | Hex ID=0x%03X | ID=%u'):format(
             target.name or 'Unknown', target.index or 0, target.id)
         table.insert(lines, target_line)
