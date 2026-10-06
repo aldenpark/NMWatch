@@ -1,5 +1,4 @@
--- Generated from the FFXIclopedia NM level guide on 2026-10-06.
--- Exact IDs are manually verified from BG Wiki and FFXIclopedia page notes.
+-- Bundled NM name/zone list; exact IDs are verified from BG Wiki page notes.
 return {
     spawn_types = require('spawn_types'),
     spawn_details = require('spawn_details'),

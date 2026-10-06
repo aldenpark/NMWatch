@@ -1,7 +1,7 @@
 -- Pop-method annotations derived from BG Wiki pages on 2026-10-06.
 -- These describe how each NM appears; NMWatch does not use them as detection rules.
 -- "special" covers weather, events, morphs, assisted spawns, and other nonstandard conditions.
--- Boll Weevil is supplemented from FFXIclopedia because BG Wiki has no individual page.
+-- Boll Weevil is supplemented from the bundled NM list because BG Wiki has no individual page.
 return {
     -- Timed spawns (118)
     ["Ahtu"] = "timed", ["Amanita"] = "timed",

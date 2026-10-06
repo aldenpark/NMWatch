@@ -2,7 +2,7 @@
 
 Windower 4 addon that alerts when a known Notorious Monster is nearby. It does
 not send `/check` packets. Exact TargetInfo hex IDs are checked first; an
-offline FFXIclopedia name/zone list is used as a fallback.
+the bundled NM name/zone list is used as a fallback.
 
 ## Quick start
 
@@ -30,9 +30,8 @@ saved IDs for the current zone.
 3. Exact mob name in the current zone from `wiki_nms.lua`, when the wiki
    fallback is enabled.
 
-The bundled name snapshot comes from the FFXIclopedia Notorious Monsters level
-guide. Exact IDs come from explicitly labeled NM IDs in the linked article text
-and BG Wiki NM page notes. A mob may legitimately have multiple IDs: for
+The bundled name list covers the known NM names and zones. Exact IDs come from
+explicitly labeled NM IDs in the linked article text and BG Wiki NM page notes. A mob may legitimately have multiple IDs: for
 example, Leaping Lizzy uses `0x17C` and `0x190` in South Gustaberg, and NMWatch
 includes both. Use `//nmw wiki` to disable or enable the name fallback.
 
@@ -76,7 +75,7 @@ start or cancel objectives.
 | `//nmw remove` | Remove the targeted zone/index |
 | `//nmw list` | List exact IDs saved for this zone |
 | `//nmw range <yalms>` | Change the scan radius |
-| `//nmw wiki` | Toggle the FFXIclopedia name fallback |
+| `//nmw wiki` | Toggle the bundled name fallback |
 | `//nmw links [on\|off]` | Enable or disable clickable BG Wiki NM names |
 | `//nmw hud` | Toggle the HUD |
 | `//nmw alpha <0-255>` | Set HUD background opacity (`0` transparent, `255` solid) |
@@ -88,11 +87,7 @@ start or cancel objectives.
 
 ## Data source
 
-`wiki_nms.lua` is an offline snapshot of:
-
-<https://ffxiclopedia.fandom.com/wiki/Notorious_Monsters:_Level_Guide>
-
-The bundled name fallback includes the complete local `nm_list.txt`: 435 unique
+`wiki_nms.lua` contains the bundled name fallback: 435 unique
 NM names across 447 zone/name combinations. Multi-zone entries are expanded so
 each applicable zone can match independently.
 
