@@ -305,7 +305,7 @@ local function update_hud()
     local lines = {
         ('%-42s%s'):format(('NMWatch %s  range=%dy'):format(state, settings.range), string.rep(' ', #zone_name)),
     }
-    zone_lines[1] = ('%42s%s'):format('', zone_name)
+    zone_lines[1] = zone_name
 
     local target = selected_target()
     if target and target.id and target.id > 0 then
@@ -387,7 +387,7 @@ local function update_hud()
     inactive_icons:pos(hud_x, hud_y)
     link_text:pos(hud_x, hud_y)
     drop_text:pos(hud_x, hud_y)
-    zone_text:pos(hud_x, hud_y)
+    zone_text:pos(hud_x + 275, hud_y)
     target_text:pos(hud_x, hud_y)
     alert_text:pos(hud_x, hud_y)
     if os.clock() < alert_until then
@@ -438,7 +438,7 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
         inactive_icons:pos(x - hud_drag.x, y - hud_drag.y)
         link_text:pos(x - hud_drag.x, y - hud_drag.y)
         drop_text:pos(x - hud_drag.x, y - hud_drag.y)
-        zone_text:pos(x - hud_drag.x, y - hud_drag.y)
+        zone_text:pos(x - hud_drag.x + 275, y - hud_drag.y)
         target_text:pos(x - hud_drag.x, y - hud_drag.y)
         alert_text:pos(x - hud_drag.x, y - hud_drag.y)
         return true
