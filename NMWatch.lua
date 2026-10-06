@@ -224,9 +224,14 @@ local function scan()
                 last_seen[zone_name:lower()][defeated_name] = nil
             end
         end
+        local known_name, known_source
+        if mob and mob.id and mob.index then
+            known_name, known_source = match_mob(mob, zone_id, zone_name)
+        end
+        local known_placeholder = nm_data.placeholder_ids[zone_id]
+            and nm_data.placeholder_ids[zone_id][mob and mob.index]
         if mob and mob.id and mob.id > 0 and mob.index
-            and (mob.spawn_type == 16 or (nm_data.placeholder_ids[zone_id]
-                and nm_data.placeholder_ids[zone_id][mob.index])) and mob.valid_target
+            and (mob.spawn_type == 16 or known_placeholder)
             and mob.hpp and mob.hpp > 0
         then
             local dx = (mob.x or 0) - (player.x or 0)
@@ -234,7 +239,7 @@ local function scan()
             local dz = (mob.z or 0) - (player.z or 0)
             local distance_sq = dx * dx + dy * dy + dz * dz
             if distance_sq <= range_sq then
-                local name, source = match_mob(mob, zone_id, zone_name)
+                local name, source = known_name, known_source
                 if name then
                     local match = {
                         id = mob.id,
@@ -342,7 +347,7 @@ local function update_hud()
             target.name or 'Unknown', target.index or 0, target.id)
         table.insert(lines, target_line)
         target_lines[2] = target_line
-        if target_name then target_text:color(80, 255, 120) else target_text:color(255, 120, 80) end
+        if target_name then target_text:color(210, 150, 255) else target_text:color(255, 120, 80) end
     end
 
     if #active_list > 0 then
@@ -433,7 +438,7 @@ local function update_hud()
     zone_text:pos(hud_x + 275, hud_y)
     target_text:pos(hud_x, hud_y)
     alert_text:pos(hud_x, hud_y)
-    if os.clock() < alert_until then
+    if next(alert_mob_ids) ~= nil then
         alert_text:show()
     else
         alert_text:hide()
