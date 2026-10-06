@@ -70,7 +70,7 @@ local last_seen = {}
 local last_scan = 0
 local last_hud_update = 0
 local alert_until = 0
-local alert_mob_id = nil
+local alert_mob_ids = {}
 local wiki_cache = {}
 local active_roe = {}
 local completed_roe = {}
@@ -196,7 +196,7 @@ local function notify(match)
         windower.play_sound(settings.sound_file)
     end
     alert_until = os.clock() + 5
-    alert_mob_id = match.id
+    alert_mob_ids[match.id] = true
     table.insert(recent, 1, match)
     while #recent > settings.hud.max_shown do
         table.remove(recent)
@@ -249,8 +249,10 @@ local function scan()
 
     active = found
     seen = found
-    if alert_mob_id and not found[alert_mob_id] then
-        alert_mob_id = nil
+    for mob_id in pairs(alert_mob_ids) do
+        if not found[mob_id] then alert_mob_ids[mob_id] = nil end
+    end
+    if next(alert_mob_ids) == nil then
         alert_until = 0
     end
 end
@@ -334,7 +336,7 @@ local function update_hud()
         local match = active_list[i]
         local nearby_line = ('  %s [0x%03X] %.1fy'):format(match.name, match.index, match.distance)
         table.insert(lines, nearby_line)
-        if match.id == alert_mob_id then
+        if alert_mob_ids[match.id] then
             alert_lines[#lines] = nearby_line
         end
     end
@@ -537,7 +539,7 @@ windower.register_event('zone change', function()
     active = {}
     recent = {}
     alert_until = 0
-    alert_mob_id = nil
+    alert_mob_ids = {}
     last_scan = 0
 end)
 
