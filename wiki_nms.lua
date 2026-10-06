@@ -3,6 +3,9 @@ return {
     spawn_types = require('spawn_types'),
     spawn_details = require('spawn_details'),
     drops = require('drops'),
+    placeholder_ids = {
+        [100] = {[0x126] = "Jaggedy-Eared Jack"}, -- BG Wiki: placeholder ID 126; NM ID 127.
+    },
     ids = {
         [4] = {[0x02E] = "Serra"},
         [100] = {[0x127] = "Jaggedy-Eared Jack"},

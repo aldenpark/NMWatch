@@ -175,6 +175,12 @@ local function match_mob(mob, zone_id, zone_name)
         return bundled_name, match_source(bundled_name, 'wiki ID')
     end
 
+    local placeholder_ids = nm_data.placeholder_ids[zone_id]
+    local placeholder_name = placeholder_ids and placeholder_ids[mob.index]
+    if placeholder_name then
+        return placeholder_name, match_source(placeholder_name, 'placeholder ID')
+    end
+
     if settings.wiki_fallback and mob.name then
         local wiki_name = wiki_names(zone_name)[mob.name:lower()]
         if wiki_name then
