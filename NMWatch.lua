@@ -216,6 +216,12 @@ local function scan()
     local found = {}
 
     for _, mob in pairs(mobs) do
+        if mob and mob.id and mob.id > 0 and mob.index and mob.hpp and mob.hpp <= 0 then
+            local defeated_name = match_mob(mob, zone_id, zone_name)
+            if defeated_name and last_seen[zone_name:lower()] then
+                last_seen[zone_name:lower()][defeated_name] = nil
+            end
+        end
         if mob and mob.id and mob.id > 0 and mob.index
             and mob.spawn_type == 16 and mob.valid_target
             and mob.hpp and mob.hpp > 0
