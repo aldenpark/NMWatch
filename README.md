@@ -48,6 +48,8 @@ Nearby matches appear above the zone list.
 Each zone NM also displays a `Drops:` section populated from the BG Wiki
 Treasure field. Entries without a usable Treasure field say
 `None documented on BG Wiki.` rather than guessing.
+Each NM row also shows `Last seen` for the most recent detection during the
+current addon session, or `never` if NMWatch has not detected it yet.
 
 HUD colors are used as follows:
 

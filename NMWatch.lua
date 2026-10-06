@@ -73,6 +73,7 @@ target_text:color(255, 120, 80)
 local seen = {}
 local active = {}
 local recent = {}
+local last_seen = {}
 local last_scan = 0
 local last_hud_update = 0
 local alert_until = 0
@@ -232,6 +233,8 @@ local function scan()
                         distance = math.sqrt(distance_sq),
                     }
                     found[mob.id] = match
+                    last_seen[zone_name:lower()] = last_seen[zone_name:lower()] or {}
+                    last_seen[zone_name:lower()][name] = os.time()
                     if not seen[mob.id] then
                         notify(match)
                     end
@@ -335,7 +338,10 @@ local function update_hud()
     table.insert(lines, 'Zone NMs:')
     for _, name in ipairs(zone_nms) do
         local row_line = #lines + 1
-        table.insert(lines, ('       %s [%s]'):format(name, nm_data.spawn_types[name] or 'unknown'))
+        local seen_at = last_seen[zone_name:lower()] and last_seen[zone_name:lower()][name]
+        local seen_label = seen_at and os.date('%Y-%m-%d %H:%M:%S', seen_at) or 'never'
+        table.insert(lines, ('       %s [%s] | Last seen: %s'):format(
+            name, nm_data.spawn_types[name] or 'unknown', seen_label))
         if settings.wiki_links then link_lines[row_line] = '       ' .. name end
         local objective_id = roe_nms[name]
         if objective_id then
