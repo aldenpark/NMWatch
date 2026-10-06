@@ -11,6 +11,10 @@ the bundled NM name/zone list is used as a fallback.
 //nmw on
 ```
 
+## HUD example
+
+![NMWatch HUD showing the zone, selected target, nearby NMs, spawn methods, drops, and distances](docs/nmwatch-hud.png)
+
 Target an NM and save its exact zone-local ID:
 
 ```text
