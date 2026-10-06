@@ -25,7 +25,7 @@ local defaults = {
         visible = true,
         max_shown = 8,
         pos = {x = 10, y = 300},
-        bg = {red = 0, green = 0, blue = 0, alpha = 100, visible = true},
+        bg = {red = 0, green = 0, blue = 0, alpha = 0, visible = true},
         text = {font = 'Consolas', size = 11, red = 255, green = 255, blue = 255, alpha = 255},
         flags = {draggable = true, bold = false, italic = false},
         padding = 4,
