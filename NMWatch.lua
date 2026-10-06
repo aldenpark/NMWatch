@@ -55,12 +55,14 @@ local link_text = texts.new('', link_settings)
 local drop_text = texts.new('', link_settings)
 local zone_text = texts.new('', link_settings)
 local target_text = texts.new('', link_settings)
+local alert_text = texts.new('', link_settings)
 active_icons:color(80, 255, 80)
 inactive_icons:color(255, 80, 80)
 link_text:color(100, 200, 255)
 drop_text:color(255, 210, 80)
 zone_text:color(255, 80, 255)
 target_text:color(255, 120, 80)
+alert_text:color(255, 80, 80)
 local seen = {}
 local active = {}
 local recent = {}
@@ -279,6 +281,7 @@ local function update_hud()
         drop_text:hide()
         zone_text:hide()
         target_text:hide()
+        alert_text:hide()
         return
     end
 
@@ -297,6 +300,7 @@ local function update_hud()
     local drop_lines = {}
     local zone_lines = {}
     local target_lines = {}
+    local alert_lines = {}
     hud_link_rows = {}
     local lines = {
         ('%-42s%s'):format(('NMWatch %s  range=%dy'):format(state, settings.range), zone_name),
@@ -316,7 +320,11 @@ local function update_hud()
     end
     for i = 1, math.min(#active_list, settings.hud.max_shown) do
         local match = active_list[i]
-        table.insert(lines, ('  %s [0x%03X] %.1fy'):format(match.name, match.index, match.distance))
+        local nearby_line = ('  %s [0x%03X] %.1fy'):format(match.name, match.index, match.distance)
+        table.insert(lines, nearby_line)
+        if match.id == alert_mob_id and os.clock() < alert_until then
+            alert_lines[#lines] = nearby_line
+        end
     end
     if #active_list == 0 and #recent > 0 then
         table.insert(lines, 'Last: ' .. recent[1].name)
@@ -362,6 +370,7 @@ local function update_hud()
         drop_lines[i] = drop_lines[i] or ' '
         zone_lines[i] = zone_lines[i] or ' '
         target_lines[i] = target_lines[i] or ' '
+        alert_lines[i] = alert_lines[i] or ' '
     end
     hud_line_count = #lines
 
@@ -372,6 +381,7 @@ local function update_hud()
     drop_text:text(table.concat(drop_lines, '\n'))
     zone_text:text(table.concat(zone_lines, '\n'))
     target_text:text(table.concat(target_lines, '\n'))
+    alert_text:text(table.concat(alert_lines, '\n'))
     local hud_x, hud_y = hud:pos()
     active_icons:pos(hud_x, hud_y)
     inactive_icons:pos(hud_x, hud_y)
@@ -379,13 +389,14 @@ local function update_hud()
     drop_text:pos(hud_x, hud_y)
     zone_text:pos(hud_x, hud_y)
     target_text:pos(hud_x, hud_y)
+    alert_text:pos(hud_x, hud_y)
     if os.clock() < alert_until then
-        hud:bg_color(120, 0, 0)
-        hud:bg_alpha(220)
+        alert_text:show()
     else
-        hud:bg_color(settings.hud.bg.red, settings.hud.bg.green, settings.hud.bg.blue)
-        hud:bg_alpha(settings.hud.bg.alpha)
+        alert_text:hide()
     end
+    hud:bg_color(settings.hud.bg.red, settings.hud.bg.green, settings.hud.bg.blue)
+    hud:bg_alpha(settings.hud.bg.alpha)
     hud:show()
     active_icons:show()
     inactive_icons:show()
@@ -429,6 +440,7 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
         drop_text:pos(x - hud_drag.x, y - hud_drag.y)
         zone_text:pos(x - hud_drag.x, y - hud_drag.y)
         target_text:pos(x - hud_drag.x, y - hud_drag.y)
+        alert_text:pos(x - hud_drag.x, y - hud_drag.y)
         return true
     elseif type == 2 then
         if pending_link then

@@ -58,9 +58,9 @@ HUD colors are used as follows:
 - Gold: documented drops.
 - Green/red circles: active/inactive Records of Eminence objectives.
 
-The panel uses a translucent background and is tinted red while a newly
-detected NM alert is active. That alert tint clears when the matching mob
-disappears.
+The panel uses a translucent background. A newly detected NM's nearby line is
+shown in red with its location/index and distance; the red alert text clears
+when the matching mob disappears.
 
 NMs with a matching Records of Eminence kill objective have a colored circle:
 
