@@ -292,9 +292,10 @@ local function update_hud()
     zone_lines[2] = zone_name
 
     local target = selected_target()
-    if target and target.id and target.id > 0 and target.index then
-        table.insert(lines, ('Target: %s | index=0x%03X | id=%u'):format(
-            target.name or 'Unknown', target.index, target.id))
+    if target and target.index then
+        local target_id = target.id and target.id > 0 and tostring(target.id) or 'unknown'
+        table.insert(lines, ('Target: %s | index=0x%03X | id=%s'):format(
+            target.name or 'Unknown', target.index, target_id))
     end
 
     if #active_list > 0 then
