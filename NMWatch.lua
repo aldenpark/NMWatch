@@ -303,7 +303,7 @@ local function update_hud()
     local alert_lines = {}
     hud_link_rows = {}
     local lines = {
-        ('%-42s%s'):format(('NMWatch %s  range=%dy'):format(state, settings.range), zone_name),
+        ('%-42s%s'):format(('NMWatch %s  range=%dy'):format(state, settings.range), string.rep(' ', #zone_name)),
     }
     zone_lines[1] = ('%42s%s'):format('', zone_name)
 
