@@ -71,6 +71,7 @@ local last_scan = 0
 local last_hud_update = 0
 local alert_until = 0
 local alert_mob_ids = {}
+local alert_mob_names = {}
 local wiki_cache = {}
 local active_roe = {}
 local completed_roe = {}
@@ -197,6 +198,7 @@ local function notify(match)
     end
     alert_until = os.clock() + 5
     alert_mob_ids[match.id] = true
+    alert_mob_names[match.id] = match.name
     table.insert(recent, 1, match)
     while #recent > settings.hud.max_shown do
         table.remove(recent)
@@ -256,7 +258,12 @@ local function scan()
     active = found
     seen = found
     for mob_id in pairs(alert_mob_ids) do
-        if not found[mob_id] then alert_mob_ids[mob_id] = nil end
+        if not found[mob_id] then
+            alert_mob_ids[mob_id] = nil
+            local name = alert_mob_names[mob_id]
+            if name and last_seen[zone_name:lower()] then last_seen[zone_name:lower()][name] = nil end
+            alert_mob_names[mob_id] = nil
+        end
     end
     if next(alert_mob_ids) == nil then
         alert_until = 0
@@ -548,6 +555,7 @@ windower.register_event('zone change', function()
     recent = {}
     alert_until = 0
     alert_mob_ids = {}
+    alert_mob_names = {}
     last_scan = 0
 end)
 
