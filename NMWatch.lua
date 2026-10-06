@@ -255,6 +255,10 @@ local function append_wrapped(lines, prefix, value, continuation_prefix)
     table.insert(lines, line)
 end
 
+local function selected_target()
+    return windower.ffxi.get_mob_by_target('st') or windower.ffxi.get_mob_by_target('t')
+end
+
 local function update_hud()
     if not settings.hud.visible then
         hud:hide()
@@ -286,6 +290,12 @@ local function update_hud()
         ('%s | NMs: %d | Saved IDs: %d'):format(zone_name, #zone_nms, current_zone_id_count()),
     }
     zone_lines[2] = zone_name
+
+    local target = selected_target()
+    if target and target.id and target.id > 0 and target.index then
+        table.insert(lines, ('Target: %s | index=0x%03X | id=%u'):format(
+            target.name or 'Unknown', target.index, target.id))
+    end
 
     if #active_list > 0 then
         table.insert(lines, ('Nearby (%d):'):format(#active_list))
@@ -413,7 +423,7 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
 end)
 
 local function target_mob()
-    return windower.ffxi.get_mob_by_target('st') or windower.ffxi.get_mob_by_target('t')
+    return selected_target()
 end
 
 local function show_target_id()
