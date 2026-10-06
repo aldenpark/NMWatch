@@ -1,5 +1,5 @@
 _addon.name = 'NMWatch'
-_addon.version = '1.5.0'
+_addon.version = '1.6.0'
 _addon.author = 'Alden Park'
 _addon.commands = {'nmw', 'nmwatch'}
 
@@ -8,6 +8,7 @@ local config = require('config')
 local packets = require('packets')
 local res = require('resources')
 local texts = require('texts')
+local images = require('images')
 local nm_data = require('wiki_nms')
 local roe_nms = require('roe_nms')
 
@@ -34,6 +35,14 @@ local defaults = {
 
 local settings = config.load(defaults)
 local hud = texts.new('', settings.hud, settings)
+local xi_prime_panel = images.new({
+    pos = {x = settings.hud.pos.x - 8, y = settings.hud.pos.y - 8},
+    size = {width = 800, height = 200},
+    texture = {path = windower.addon_path .. 'themes/xiPrime/system.png'},
+    color = {alpha = 230, red = 255, green = 255, blue = 255},
+    repeatable = {x = 1, y = 1},
+    draggable = false,
+})
 -- NM rows handle clicks themselves so the header can remain the drag handle.
 hud:draggable(false)
 local function icon_settings()
@@ -67,6 +76,7 @@ local recent = {}
 local last_scan = 0
 local last_hud_update = 0
 local alert_until = 0
+local alert_mob_id = nil
 local wiki_cache = {}
 local active_roe = {}
 local hud_link_rows = {}
@@ -183,6 +193,7 @@ local function notify(match)
         windower.play_sound(settings.sound_file)
     end
     alert_until = os.clock() + 5
+    alert_mob_id = match.id
     table.insert(recent, 1, match)
     while #recent > settings.hud.max_shown do
         table.remove(recent)
@@ -231,6 +242,10 @@ local function scan()
 
     active = found
     seen = found
+    if alert_mob_id and not found[alert_mob_id] then
+        alert_mob_id = nil
+        alert_until = 0
+    end
 end
 
 local function current_zone_id_count()
@@ -264,6 +279,7 @@ end
 local function update_hud()
     if not settings.hud.visible then
         hud:hide()
+        xi_prime_panel:hide()
         active_icons:hide()
         inactive_icons:hide()
         link_text:hide()
@@ -363,6 +379,9 @@ local function update_hud()
     zone_text:text(table.concat(zone_lines, '\n'))
     target_text:text(table.concat(target_lines, '\n'))
     local hud_x, hud_y = hud:pos()
+    local hud_width, hud_height = hud:extents()
+    xi_prime_panel:pos(hud_x - 8, hud_y - 8)
+    xi_prime_panel:size((hud_width or 800) + 16, (hud_height or 200) + 16)
     active_icons:pos(hud_x, hud_y)
     inactive_icons:pos(hud_x, hud_y)
     link_text:pos(hud_x, hud_y)
@@ -372,10 +391,13 @@ local function update_hud()
     if os.clock() < alert_until then
         hud:bg_color(120, 0, 0)
         hud:bg_alpha(220)
+        xi_prime_panel:color(255, 100, 100)
     else
         hud:bg_color(settings.hud.bg.red, settings.hud.bg.green, settings.hud.bg.blue)
         hud:bg_alpha(settings.hud.bg.alpha)
+        xi_prime_panel:color(255, 255, 255)
     end
+    xi_prime_panel:show()
     hud:show()
     active_icons:show()
     inactive_icons:show()
@@ -413,6 +435,7 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
         end
     elseif type == 0 and hud_drag then
         hud:pos(x - hud_drag.x, y - hud_drag.y)
+        xi_prime_panel:pos(x - hud_drag.x - 8, y - hud_drag.y - 8)
         active_icons:pos(x - hud_drag.x, y - hud_drag.y)
         inactive_icons:pos(x - hud_drag.x, y - hud_drag.y)
         link_text:pos(x - hud_drag.x, y - hud_drag.y)
@@ -509,6 +532,7 @@ windower.register_event('zone change', function()
     active = {}
     recent = {}
     alert_until = 0
+    alert_mob_id = nil
     last_scan = 0
 end)
 
