@@ -35,6 +35,7 @@ local defaults = {
 
 local settings = config.load(defaults)
 local hud = texts.new('', settings.hud, settings)
+hud:bg_visible(false)
 local xi_prime_panel = images.new({
     pos = {x = settings.hud.pos.x - 8, y = settings.hud.pos.y - 8},
     size = {width = 800, height = 200},
@@ -397,12 +398,14 @@ local function update_hud()
     target_text:pos(hud_x, hud_y)
     if os.clock() < alert_until then
         hud:bg_color(120, 0, 0)
-        hud:bg_alpha(220)
+        hud:bg_alpha(0)
         xi_prime_panel:color(255, 100, 100)
+        xi_prime_panel:alpha(220)
     else
         hud:bg_color(settings.hud.bg.red, settings.hud.bg.green, settings.hud.bg.blue)
-        hud:bg_alpha(settings.hud.bg.alpha)
+        hud:bg_alpha(0)
         xi_prime_panel:color(255, 255, 255)
+        xi_prime_panel:alpha(settings.hud.bg.alpha)
     end
     xi_prime_panel:show()
     hud:show()
