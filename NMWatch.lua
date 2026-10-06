@@ -325,7 +325,7 @@ local function update_hud()
         local match = active_list[i]
         local nearby_line = ('  %s [0x%03X] %.1fy'):format(match.name, match.index, match.distance)
         table.insert(lines, nearby_line)
-        if match.id == alert_mob_id and os.clock() < alert_until then
+        if match.id == alert_mob_id then
             alert_lines[#lines] = nearby_line
         end
     end
