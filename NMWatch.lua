@@ -290,10 +290,9 @@ local function update_hud()
     local target_lines = {}
     hud_link_rows = {}
     local lines = {
-        ('NMWatch %s  range=%dy'):format(state, settings.range),
-        ('%s | NMs: %d | Saved IDs: %d'):format(zone_name, #zone_nms, current_zone_id_count()),
+        ('%-42s%s'):format(('NMWatch %s  range=%dy'):format(state, settings.range), zone_name),
     }
-    zone_lines[2] = zone_name
+    zone_lines[1] = ('%42s%s'):format('', zone_name)
 
     local target = selected_target()
     local target_line
@@ -304,7 +303,7 @@ local function update_hud()
         target_line = 'Target: none'
     end
     table.insert(lines, target_line)
-    target_lines[3] = target_line
+    target_lines[2] = target_line
 
     if #active_list > 0 then
         table.insert(lines, ('Nearby (%d):'):format(#active_list))
