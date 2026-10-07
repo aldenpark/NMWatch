@@ -82,7 +82,6 @@ local pending_link = nil
 local widescan_entries = {}
 local widescan_counts = {}
 local widescan_track
-local widescan_visible_until = 0
 local widescan_scan_pending = false
 local annotate_widescan
 local zone_info
@@ -92,7 +91,6 @@ local function clear_widescan()
     widescan_entries = {}
     widescan_counts = {}
     widescan_track = nil
-    widescan_visible_until = 0
     widescan_scan_pending = false
 end
 
@@ -144,7 +142,6 @@ local function update_widescan_mob(data)
     if widescan_scan_pending then
         clear_widescan()
     end
-    widescan_visible_until = os.clock() + 30
     widescan_counts[name] = (widescan_counts[name] or 0) + 1
     table.insert(widescan_entries, {
         name = name,
@@ -231,7 +228,8 @@ annotate_widescan = function()
             for occurrence, entry in ipairs(group.entries) do
                 if occurrence == wanted_occurrence
                     and (not rule.group_occurrence or group_number == rule.group_occurrence)
-                    and (#group.entries >= (rule.group_size or wanted_occurrence)) then
+                    and (not rule.group_size or #group.entries == rule.group_size)
+                    and #group.entries >= wanted_occurrence then
                     entry.placeholder_for = rule.nm
                     entry.area = rule.area
                 end
@@ -266,7 +264,6 @@ end
 local function update_widescan_track(data)
     local track = packets.parse('incoming', data)
     if track and (track.Status == 2 or track.Status == 'Reset (zone)') then
-        clear_widescan()
         return
     end
     if track and (track.Status == 3 or track.Status == 'Reset (new scan)') then
@@ -342,15 +339,24 @@ local function relative_direction(player, mob)
     return direction ~= '' and direction or 'here'
 end
 
-local function match_mob(mob, zone_id, zone_name)
-    if widescan_track and mob.index == widescan_track.index then
-        if widescan_track.tracked_nm then
-            return widescan_track.tracked_nm,
-                match_source(widescan_track.tracked_nm, 'widescan NM')
+local function matched_widescan_entry(index)
+    for _, entry in ipairs(widescan_entries) do
+        if entry.index == index and (entry.tracked_nm or entry.placeholder_for) then
+            return entry
         end
-        if widescan_track.placeholder_for then
-            return widescan_track.placeholder_for,
-                match_source(widescan_track.placeholder_for, 'widescan placeholder')
+    end
+end
+
+local function match_mob(mob, zone_id, zone_name)
+    local widescan_entry = matched_widescan_entry(mob.index)
+    if widescan_entry then
+        if widescan_entry.tracked_nm then
+            return widescan_entry.tracked_nm,
+                match_source(widescan_entry.tracked_nm, 'widescan NM')
+        end
+        if widescan_entry.placeholder_for then
+            return widescan_entry.placeholder_for,
+                match_source(widescan_entry.placeholder_for, 'widescan placeholder')
         end
     end
     local exact_name = custom_name(zone_id, mob.index)
@@ -407,9 +413,6 @@ local function scan()
 
     for _, mob in pairs(mobs) do
         if mob and mob.id and mob.id > 0 and mob.index and mob.hpp and mob.hpp <= 0 then
-            if widescan_track and mob.index == widescan_track.index then
-                clear_widescan()
-            end
             local defeated_name = match_mob(mob, zone_id, zone_name)
             if defeated_name and last_seen[zone_name:lower()] then
                 last_seen[zone_name:lower()][defeated_name] = nil
@@ -417,7 +420,7 @@ local function scan()
         end
         local known_placeholder = nm_data.placeholder_ids[zone_id]
             and nm_data.placeholder_ids[zone_id][mob and mob.index]
-        local tracked_widescan = widescan_track and mob and mob.index == widescan_track.index
+        local tracked_widescan = mob and matched_widescan_entry(mob.index)
         if mob and mob.id and mob.id > 0 and mob.index
             and (mob.spawn_type == 16 or known_placeholder or tracked_widescan)
             and mob.hpp and mob.hpp > 0
@@ -494,9 +497,6 @@ local function selected_target()
 end
 
 local function update_hud()
-    if widescan_visible_until > 0 and os.clock() >= widescan_visible_until then
-        clear_widescan()
-    end
     if not settings.hud.visible then
         hud:hide()
         active_icons:hide()
@@ -536,9 +536,6 @@ local function update_hud()
     local target_name
     if target and target.id and target.id > 0 then
         target_name = match_mob(target, zone_info())
-        if widescan_track and target.index == widescan_track.index then
-            clear_widescan()
-        end
         if not target_name then
             for _, match in pairs(active) do
                 if match.id == target.id then
@@ -585,44 +582,6 @@ local function update_hud()
             alert_lines[#lines] = nearby_line
         end
     end
-    if #widescan_entries > 0 then
-        table.insert(lines, 'Widescan (map offsets):')
-        for i = 1, math.min(#widescan_entries, settings.hud.max_shown) do
-            local entry = widescan_entries[i]
-            local label = ('  %s #%d [0x%03X]'):format(entry.name, entry.number, entry.index or 0)
-            if entry.placeholder_for then
-                label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder'
-            end
-            if entry.tracked_nm then
-                label = label .. (widescan_track == entry and ' -> NM tracked' or ' -> NM found')
-            end
-            if entry.x and player then
-                local dx, dy = entry.x - player.x, entry.y - player.y
-                local distance = math.sqrt(dx * dx + dy * dy)
-                label = label .. (' | %.1fy %s (%.1f, %.1f, %.1f)'):format(
-                    distance, relative_direction(player, entry), entry.x, entry.y, entry.z)
-            end
-            table.insert(lines, label)
-        end
-        for i = settings.hud.max_shown + 1, #widescan_entries do
-            local entry = widescan_entries[i]
-            if entry.placeholder_for or entry.tracked_nm then
-                local tracked = entry.x and player and (' | %.1fy %s (%.1f, %.1f, %.1f)'):format(
-                    math.sqrt((entry.x - player.x)^2 + (entry.y - player.y)^2),
-                    relative_direction(player, entry), entry.x, entry.y, entry.z) or ''
-                local label = ('  %s #%d [0x%03X] offsets=(%s,%s)'):format(
-                    entry.name, entry.number, entry.index or 0,
-                    tostring(entry.x_offset or '?'), tostring(entry.y_offset or '?'))
-                if entry.placeholder_for then
-                    label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder'
-                end
-                if entry.tracked_nm then
-                    label = label .. (widescan_track == entry and ' -> NM tracked' or ' -> NM found')
-                end
-                table.insert(lines, label .. tracked)
-            end
-        end
-    end
     if #active_list == 0 and #recent > 0 then
         table.insert(lines, 'Last: ' .. recent[1].name)
     end
@@ -660,6 +619,32 @@ local function update_hud()
     end
     if #zone_nms == 0 then
         table.insert(lines, '  none in bundled list')
+    end
+
+    if #widescan_entries > 0 then
+        table.insert(lines, 'Widescan (map offsets):')
+        local ordinary_shown = 0
+        for _, entry in ipairs(widescan_entries) do
+            local flagged = entry.placeholder_for or entry.tracked_nm
+            if flagged or ordinary_shown < settings.hud.max_shown then
+                if not flagged then ordinary_shown = ordinary_shown + 1 end
+                local label = ('  %s #%d [0x%03X]'):format(
+                    entry.name, entry.number, entry.index or 0)
+                if entry.placeholder_for then
+                    label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder'
+                end
+                if entry.tracked_nm then
+                    label = label .. (widescan_track == entry and ' -> NM tracked' or ' -> NM found')
+                end
+                if entry.x and player then
+                    local dx, dy = entry.x - player.x, entry.y - player.y
+                    local distance = math.sqrt(dx * dx + dy * dy)
+                    label = label .. (' | %.1fy %s (%.1f, %.1f, %.1f)'):format(
+                        distance, relative_direction(player, entry), entry.x, entry.y, entry.z)
+                end
+                table.insert(lines, label)
+            end
+        end
     end
 
     local green_lines = {}
@@ -843,6 +828,7 @@ windower.register_event('zone change', function()
     alert_mob_ids = {}
     alert_mob_names = {}
     last_scan = 0
+    clear_widescan()
 end)
 
 windower.register_event('incoming chunk', function(id, data)

@@ -15,7 +15,7 @@ return {
         [4] = { -- Bibiki Bay: the sole Eft between the Raven and Marine Dhalmel groups.
             {nm = "Intulo", placeholder_name = "Eft", occurrence = "first", scope = "scan",
                 after = {name = "Raven", occurrence = "last"},
-                before = {name = "Marine Dhalmel", occurrence = "first"}, area = "H-7, I-7"},
+                before = {name = "Marine Dhalmel", occurrence = "first"}, area = "H-7"},
         },
         [30] = { -- Riverne - Site #A01: last Flamedrake on the scan list.
             {nm = "Aiatar", placeholder_name = "Flamedrake", occurrence = "last",
@@ -23,7 +23,7 @@ return {
         },
         [89] = { -- Grauberg [S]: second Ajattara in the first group of two.
             {nm = "Scitalis", placeholder_name = "Ajattara", occurrence = 2,
-                group_size = 2, group_occurrence = 1, area = "F-9, H-9"},
+                group_size = 2, group_occurrence = 1, area = "H-9"},
         },
         [91] = { -- Rolanberry Fields [S]: middle Scabrous Slug in the group of three.
             {nm = "Dyinyinga", placeholder_name = "Scabrous Slug", occurrence = 2,
@@ -31,11 +31,11 @@ return {
         },
         [98] = { -- Sauromugue Champaign [S]: second of two Lynxes.
             {nm = "Balam-Quitz", placeholder_name = "Lynx", occurrence = 2,
-                group_size = 2, area = "K-7, K-8"},
+                group_size = 2, area = "K-8"},
         },
         [100] = { -- West Ronfaure: scan group at H-8; lottery area G-9/H-9.
             {nm = "Fungus Beetle", placeholder_name = "Scarab Beetle", occurrence = 2,
-                group_size = 3, area = "G-9, H-8, H-9, I-9"},
+                group_size = 3, area = "H-8"},
         },
         [103] = { -- Valkurm Dunes: first of two Giant Bats in the south tunnel.
             {nm = "Golden Bat", placeholder_name = "Giant Bat", occurrence = 1,
@@ -43,11 +43,11 @@ return {
         },
         [105] = { -- Batallia Downs: first sapling in the first of three pairs.
             {nm = "Tottering Toby", placeholder_name = "Stalking Sapling", occurrence = 1,
-                group_size = 2, group_occurrence = 1, area = "G-5, G-6, G-7"},
+                group_size = 2, group_occurrence = 1, area = "G-6, G-7"},
         },
         [106] = { -- North Gustaberg [S]: last Coppercap in the five-Coppercap group.
             {nm = "Gloomanita", placeholder_name = "Coppercap", occurrence = 5,
-                group_size = 5, area = "G-6, H-6"},
+                group_size = 5, area = "H-6"},
         },
         [109] = { -- Pashhow Marshlands: first of five Thread Leeches.
             {nm = "Bloodpool Vorax", placeholder_name = "Thread Leech", occurrence = 1,

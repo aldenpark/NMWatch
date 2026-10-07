@@ -61,8 +61,8 @@ placeholder and starts native widescan tracking. Tracking first follows the
 placeholder, then switches to the NM if the NM itself appears in widescan, so
 the target can still be followed beyond the normal 50-yalm nearby range.
 Tracked entries show distance, compass direction, and world X/Y/Z when the
-game returns tracking coordinates. Widescan results expire after 30 seconds or
-when the tracked entry is selected.
+game returns tracking coordinates. Captured results remain until a new nonempty
+widescan replaces them, the player changes zones, or `//nmw wsclear` is used.
 
 Each zone NM also displays a `Drops:` section populated from the BG Wiki
 Treasure field. Entries without a usable Treasure field say
