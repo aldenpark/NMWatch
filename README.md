@@ -1,8 +1,9 @@
 # NMWatch
 
-Windower 4 addon that alerts when a known Notorious Monster is nearby. It does
-not send `/check` packets. Exact TargetInfo hex IDs are checked first; an
-the bundled NM name/zone list is used as a fallback.
+Windower 4 addon that alerts when a known Notorious Monster is nearby and
+provides a level-sorted guide to NMs and notable normal-monster drops across
+every bundled zone. It does not send `/check` packets. Exact TargetInfo hex IDs
+are checked first; the bundled NM name/zone list is used as a fallback.
 
 ## Quick start
 
@@ -13,7 +14,10 @@ the bundled NM name/zone list is used as a fallback.
 
 ## HUD example
 
-![NMWatch HUD showing the zone, selected target, nearby NMs, spawn methods, drops, and distances](docs/nmwatch-hud.png)
+![NMWatch all-zone level guide beside the current-zone HUD in King Ranperre's Tomb](docs/nmwatch-hud.png)
+
+The all-zone guide is shown on the left; the live current-zone HUD remains on
+the right with spawn conditions and documented drops.
 
 Target an NM and save its exact zone-local ID:
 
@@ -45,6 +49,11 @@ avoid sound/chat spam from groups of identical ordinary monsters, only the first
 new instance of each drop-mob name is announced per scan. The nearest instances
 appear in `Nearby`, up to the configured HUD limit, and can be clicked
 individually.
+
+Optional auto-select targets the closest detected match within the configured
+range. If a closer match appears, it switches once to that mob; otherwise it
+does not repeatedly override manual targeting. Use `//nmw autoselect on` or
+`//nmw autoselect off`. Auto-select is disabled by default.
 
 The HUD always lists the bundled NMs for the current zone, labels each as
 `timed`, `lottery`, `forced/quest`, `fished`, or `special`, and displays the
@@ -91,8 +100,9 @@ Click `[Guide]` beside the current zone name to open the all-zone guide. It
 groups every bundled NM and notable normal-monster equipment drop by level band
 and zone. Level headings are gold, zone headings are magenta, and mob names use
 the same cyan BG Wiki links as the main HUD. Hover the guide and use the mouse
-wheel to scroll; click `[Guide]`
-again to close it. Long drop lists are shortened to keep the window compact.
+wheel to scroll; click `[Guide]` again to close it. The window automatically
+opens on the side of the HUD with enough screen space. Long drop lists are
+shortened to keep the window compact.
 
 Zones with notable equipment from ordinary monsters also display a
 separate `Normal mob equipment drops` section with the monster level range,
@@ -134,6 +144,7 @@ start or cancel objectives.
 | `//nmw range <yalms>` | Change the scan radius |
 | `//nmw wiki` | Toggle the bundled name fallback |
 | `//nmw links [on\|off]` | Enable or disable clickable BG Wiki NM names |
+| `//nmw autoselect [on\|off]` | Automatically target the closest detected match |
 | `//nmw hud` | Toggle the HUD |
 | `//nmw pos [x y]` | Show or set the HUD position; negative coordinates are allowed |
 | `//nmw alpha <0-255>` | Set HUD background opacity (`0` transparent, `255` solid) |

@@ -1,5 +1,5 @@
 _addon.name = 'NMWatch'
-_addon.version = '1.14.4'
+_addon.version = '1.15.0'
 _addon.author = 'Alden Park'
 _addon.commands = {'nmw', 'nmwatch'}
 
@@ -15,6 +15,7 @@ local catalog_browser = require('catalog_browser')
 
 local defaults = {
     enabled = false,
+    auto_select = false,
     wiki_fallback = true,
     wiki_links = true,
     range = 50,
@@ -113,6 +114,8 @@ local browser_offset = 0
 local browser_page_size = 18
 local browser_link_rows = {}
 local pending_browser_link
+local auto_selected_id
+local target_nearby_mob
 
 local function position_browser(hud_x, hud_y)
     local zone_width = zone_text:extents() or 0
@@ -592,6 +595,24 @@ local function scan()
     if next(alert_mob_ids) == nil then
         alert_until = 0
     end
+
+    if settings.auto_select then
+        local nearest
+        for _, match in pairs(found) do
+            if not nearest or match.distance < nearest.distance
+                or (match.distance == nearest.distance and match.id < nearest.id)
+            then
+                nearest = match
+            end
+        end
+        if nearest and nearest.id ~= auto_selected_id then
+            if target_nearby_mob(nearest) then auto_selected_id = nearest.id end
+        elseif not nearest then
+            auto_selected_id = nil
+        end
+    else
+        auto_selected_id = nil
+    end
 end
 
 local function current_zone_id_count()
@@ -622,14 +643,14 @@ local function selected_target()
     return windower.ffxi.get_mob_by_target('st') or windower.ffxi.get_mob_by_target('t')
 end
 
-local function target_nearby_mob(entry)
+target_nearby_mob = function(entry)
     local player = windower.ffxi.get_mob_by_target('me')
     local mob = windower.ffxi.get_mob_by_index(entry.index)
     if not player or not mob or mob.id ~= entry.id or (mob.hpp or 0) <= 0
         or mob.valid_target == false
     then
         chat(entry.name .. ' is no longer available to target')
-        return
+        return false
     end
 
     local ok = pcall(function()
@@ -640,6 +661,7 @@ local function target_nearby_mob(entry)
         }))
     end)
     if not ok then chat('could not target ' .. entry.name) end
+    return ok
 end
 
 local function update_hud()
@@ -672,6 +694,7 @@ local function update_hud()
     table.sort(active_list, function(a, b) return a.distance < b.distance end)
 
     local state = settings.enabled and '[ON]' or '[OFF]'
+    local auto_state = settings.auto_select and 'ON' or 'OFF'
     local active_marker_lines = {}
     local inactive_marker_lines = {}
     local link_lines = {}
@@ -684,7 +707,8 @@ local function update_hud()
     widescan_first_line = nil
     widescan_last_line = nil
     local lines = {
-        ('%-42s%s'):format(('NMWatch %s  range=%dy'):format(state, settings.range), string.rep(' ', #zone_name)),
+        ('%-42s%s'):format(('NMWatch %s  range=%dy  auto=%s'):format(
+            state, settings.range, auto_state), string.rep(' ', #zone_name)),
     }
     zone_lines[1] = zone_name
 
@@ -1217,6 +1241,7 @@ windower.register_event('zone change', function()
     alert_until = 0
     alert_mob_ids = {}
     alert_mob_names = {}
+    auto_selected_id = nil
     last_scan = 0
     placeholder_tracker:reset_session()
     clear_widescan()
@@ -1253,7 +1278,10 @@ windower.register_event('addon command', function(cmd, ...)
     if cmd == 'on' or cmd == 'off' or cmd == 'toggle' then
         settings.enabled = cmd == 'on' or (cmd == 'toggle' and not settings.enabled)
         config.save(settings)
-        if not settings.enabled then active = {} end
+        if not settings.enabled then
+            active = {}
+            auto_selected_id = nil
+        end
         chat(settings.enabled and 'enabled' or 'disabled')
     elseif cmd == 'add' then
         add_target()
@@ -1274,6 +1302,7 @@ windower.register_event('addon command', function(cmd, ...)
         seen = {}
         active = {}
         recent = {}
+        auto_selected_id = nil
         chat('detection history cleared')
     elseif cmd == 'range' and tonumber(args[1]) and tonumber(args[1]) > 0 then
         settings.range = tonumber(args[1])
@@ -1297,6 +1326,21 @@ windower.register_event('addon command', function(cmd, ...)
         end
         config.save(settings)
         chat('wiki links ' .. (settings.wiki_links and 'on' or 'off'))
+    elseif cmd == 'autoselect' then
+        local value = (args[1] or 'toggle'):lower()
+        if value == 'on' then
+            settings.auto_select = true
+        elseif value == 'off' then
+            settings.auto_select = false
+        elseif value == 'toggle' then
+            settings.auto_select = not settings.auto_select
+        else
+            chat('autoselect must be on or off')
+            return
+        end
+        auto_selected_id = nil
+        config.save(settings)
+        chat('auto select ' .. (settings.auto_select and 'on' or 'off'))
     elseif cmd == 'sound' then
         settings.sound = not settings.sound
         config.save(settings)
@@ -1341,12 +1385,13 @@ windower.register_event('addon command', function(cmd, ...)
     elseif cmd == 'test' then
         notify({name = table.concat(args, ' ') ~= '' and table.concat(args, ' ') or 'Test NM', index = 0, source = 'test'})
     elseif cmd == 'status' then
-        chat(('enabled=%s range=%dy scan=%.1fs wiki=%s links=%s sound=%s hud=%s alpha=%d')
-            :format(tostring(settings.enabled), settings.range, settings.scan_interval,
-                tostring(settings.wiki_fallback), tostring(settings.wiki_links), tostring(settings.sound),
+        chat(('enabled=%s auto_select=%s range=%dy scan=%.1fs wiki=%s links=%s sound=%s hud=%s alpha=%d')
+            :format(tostring(settings.enabled), tostring(settings.auto_select),
+                settings.range, settings.scan_interval, tostring(settings.wiki_fallback),
+                tostring(settings.wiki_links), tostring(settings.sound),
                 tostring(settings.hud.visible), settings.hud.bg.alpha))
     elseif cmd == 'help' then
-        chat('on|off|toggle, add, remove, list, clear, range <y>, wiki, links [on|off], hud, pos <x> <y>, alpha <0-255>, sound, soundfile <path>, test [name], status')
+        chat('on|off|toggle, autoselect [on|off], add, remove, list, clear, range <y>, wiki, links [on|off], hud, pos <x> <y>, alpha <0-255>, sound, soundfile <path>, test [name], status')
         chat('widescan|ws, wsclear, phstats [NM name], phreset <NM name|all>')
     else
         chat('unknown command - type //nmw help')
