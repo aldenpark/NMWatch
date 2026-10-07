@@ -1,5 +1,5 @@
 _addon.name = 'NMWatch'
-_addon.version = '1.6.0'
+_addon.version = '1.10.0'
 _addon.author = 'Alden Park'
 _addon.commands = {'nmw', 'nmwatch'}
 
@@ -81,11 +81,13 @@ local wiki_cache = {}
 local active_roe = {}
 local completed_roe = {}
 local hud_link_rows = {}
+local hud_target_rows = {}
 local hud_line_count = 0
 local widescan_first_line
 local widescan_last_line
 local hud_drag = nil
 local pending_link = nil
+local pending_target = nil
 local pending_widescan_clear
 
 -- Keep the last useful widescan visible until a new nonempty scan replaces it.
@@ -435,11 +437,20 @@ local function match_mob(mob, zone_id, zone_name)
             return wiki_name, nm_data.spawn_types[wiki_name] or 'wiki'
         end
     end
+
+    if mob.name then
+        for _, entry in ipairs(nm_data.normal_drops[zone_name:lower()] or {}) do
+            if mob.name:lower() == entry.mob:lower() then
+                return entry.mob, 'normal equipment drop', 'normal'
+            end
+        end
+    end
 end
 
 local function notify(match)
-    chat(('>>> NM FOUND: %s [0x%03X, %s] <<<')
-        :format(match.name, match.index, match.source))
+    local label = match.category == 'normal' and 'DROP MOB' or 'NM'
+    chat(('>>> %s FOUND: %s [0x%03X, %s] <<<')
+        :format(label, match.name, match.index, match.source))
     if settings.sound and settings.sound_file ~= '' then
         windower.play_sound(settings.sound_file)
     end
@@ -463,6 +474,7 @@ local function scan()
     local zone_id, zone_name = zone_info()
     local range_sq = settings.range * settings.range
     local found = {}
+    local announced_normal = {}
 
     for _, mob in pairs(mobs) do
         if mob and mob.id and mob.id > 0 and mob.index and mob.hpp and mob.hpp <= 0 then
@@ -490,13 +502,14 @@ local function scan()
             local dz = (mob.z or 0) - (player.z or 0)
             local distance_sq = dx * dx + dy * dy + dz * dz
             if distance_sq <= range_sq then
-                local name, source = match_mob(mob, zone_id, zone_name)
+                local name, source, category = match_mob(mob, zone_id, zone_name)
                 if name then
                     local match = {
                         id = mob.id,
                         index = mob.index,
                         name = mob.name or name,
                         source = source,
+                        category = category,
                         distance = math.sqrt(distance_sq),
                         x = mob.x, y = mob.y, z = mob.z,
                     }
@@ -506,7 +519,16 @@ local function scan()
                         time = os.time(), x = mob.x, y = mob.y, z = mob.z,
                     }
                     if not seen[mob.id] then
-                        notify(match)
+                        local normal_key = category == 'normal' and name:lower()
+                        if normal_key and announced_normal[normal_key] then
+                            -- Track every instance without replaying the same
+                            -- alert repeatedly in one scan.
+                            alert_mob_ids[match.id] = true
+                            alert_mob_names[match.id] = match.name
+                        else
+                            notify(match)
+                            if normal_key then announced_normal[normal_key] = true end
+                        end
                     end
                 end
             end
@@ -556,6 +578,26 @@ local function selected_target()
     return windower.ffxi.get_mob_by_target('st') or windower.ffxi.get_mob_by_target('t')
 end
 
+local function target_nearby_mob(entry)
+    local player = windower.ffxi.get_mob_by_target('me')
+    local mob = windower.ffxi.get_mob_by_index(entry.index)
+    if not player or not mob or mob.id ~= entry.id or (mob.hpp or 0) <= 0
+        or mob.valid_target == false
+    then
+        chat(entry.name .. ' is no longer available to target')
+        return
+    end
+
+    local ok = pcall(function()
+        packets.inject(packets.new('incoming', 0x058, {
+            ['Player'] = player.id,
+            ['Target'] = mob.id,
+            ['Player Index'] = player.index,
+        }))
+    end)
+    if not ok then chat('could not target ' .. entry.name) end
+end
+
 local function update_hud()
     if not settings.hud.visible then
         hud:hide()
@@ -573,6 +615,7 @@ local function update_hud()
     local zone_nms = nm_data.names[zone_name:lower()] or {}
     local zone_details = nm_data.spawn_details[zone_name:lower()] or {}
     local zone_drops = nm_data.drops[zone_name:lower()] or {}
+    local zone_normal_drops = nm_data.normal_drops[zone_name:lower()] or {}
     local player = windower.ffxi.get_mob_by_target('me')
     local active_list = {}
     for _, match in pairs(active) do table.insert(active_list, match) end
@@ -587,6 +630,7 @@ local function update_hud()
     local target_lines = {}
     local alert_lines = {}
     hud_link_rows = {}
+    hud_target_rows = {}
     widescan_first_line = nil
     widescan_last_line = nil
     local lines = {
@@ -596,12 +640,15 @@ local function update_hud()
 
     local target = selected_target()
     local target_name
+    local target_category
     if target and target.id and target.id > 0 then
-        target_name = match_mob(target, zone_info())
+        local target_source
+        target_name, target_source, target_category = match_mob(target, zone_id, zone_name)
         if not target_name then
             for _, match in pairs(active) do
                 if match.id == target.id then
                     target_name = match.name
+                    target_category = match.category
                     break
                 end
             end
@@ -620,27 +667,39 @@ local function update_hud()
         local dx, dy, dz = target.x - player.x, target.y - player.y, (target.z or 0) - (player.z or 0)
         local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
         table.insert(lines, 'Nearby (1):')
+        local target_label = target_category == 'normal' and target_name .. ' [drop]' or target_name
         table.insert(lines, ('  %s [0x%03X] %.1fy %s (%.1f, %.1f, %.1f)'):format(
-            target_name, target.index or 0, distance, relative_direction(player, target),
+            target_label, target.index or 0, distance, relative_direction(player, target),
             target.x, target.y, target.z or 0))
     end
     for i = 1, math.min(#active_list, settings.hud.max_shown) do
         local match = active_list[i]
+        local name = match.category == 'normal' and match.name .. ' [drop]' or match.name
         local nearby_line = ('  %s [0x%03X] %.1fy %s (%.1f, %.1f, %.1f)'):format(
-            match.name, match.index, match.distance, relative_direction(player, match),
+            name, match.index, match.distance, relative_direction(player, match),
             match.x or 0, match.y or 0, match.z or 0)
         table.insert(lines, nearby_line)
+        hud_target_rows[#lines] = {
+            id = match.id, index = match.index, name = match.name,
+        }
         if alert_mob_ids[match.id] or (match.source and match.source:find('placeholder ID', 1, true)) then
             alert_lines[#lines] = nearby_line
         end
     end
     for i = settings.hud.max_shown + 1, #active_list do
         local match = active_list[i]
-        if alert_mob_ids[match.id] or (match.source and match.source:find('placeholder ID', 1, true)) then
+        if match.category ~= 'normal'
+            and (alert_mob_ids[match.id]
+                or (match.source and match.source:find('placeholder ID', 1, true)))
+        then
+            local name = match.category == 'normal' and match.name .. ' [drop]' or match.name
             local nearby_line = ('  %s [0x%03X] %.1fy %s (%.1f, %.1f, %.1f)'):format(
-                match.name, match.index, match.distance, relative_direction(player, match),
+                name, match.index, match.distance, relative_direction(player, match),
                 match.x or 0, match.y or 0, match.z or 0)
             table.insert(lines, nearby_line)
+            hud_target_rows[#lines] = {
+                id = match.id, index = match.index, name = match.name,
+            }
             alert_lines[#lines] = nearby_line
         end
     end
@@ -681,6 +740,32 @@ local function update_hud()
     end
     if #zone_nms == 0 then
         table.insert(lines, '  none in bundled list')
+    end
+
+    if #zone_normal_drops > 0 then
+        table.insert(lines, 'Normal mob equipment drops by lvl:')
+        for _, entry in ipairs(zone_normal_drops) do
+            local row_line = #lines + 1
+            local level_prefix = ('  [%s] '):format(entry.levels)
+            if settings.wiki_links then
+                table.insert(lines, level_prefix .. string.rep(' ', #entry.mob))
+                -- Spaces render narrower than glyphs in Windower's text layer,
+                -- so the link overlay needs extra padding beyond #level_prefix.
+                link_lines[row_line] = '                ' .. entry.mob
+            else
+                table.insert(lines, level_prefix .. entry.mob)
+            end
+            hud_link_rows[row_line] = wiki_url(entry.mob)
+            if entry.condition then append_wrapped(lines, '    ', entry.condition) end
+
+            local drop_rendered = {}
+            append_wrapped(drop_rendered, '    Drops: ', entry.drops, '           ')
+            for _, value in ipairs(drop_rendered) do
+                -- Render drop text only in the gold layer to avoid doubled glyphs.
+                table.insert(lines, string.rep(' ', #value))
+                drop_lines[#lines] = value
+            end
+        end
     end
 
     if #widescan_entries > 0 then
@@ -791,9 +876,10 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
     local line = hud_line_at(x, y)
     local over_widescan = line and widescan_first_line and widescan_last_line
         and line >= widescan_first_line and line <= widescan_last_line
-    local interactive_line = line and ((settings.wiki_links and hud_link_rows[line])
+    local interactive_line = line and (hud_target_rows[line]
+        or (settings.wiki_links and hud_link_rows[line])
         or over_widescan)
-    if blocked and not interactive_line then return end
+    if blocked and not interactive_line and not pending_target then return end
 
     -- Windower mouse types 4 and 5 are right-button down and up. Require both
     -- events in the widescan section so a release elsewhere cannot clear data.
@@ -811,7 +897,10 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
         end
         return true
     elseif type == 1 then
-        if settings.wiki_links and line and hud_link_rows[line] then
+        if line and hud_target_rows[line] then
+            pending_target = {line = line, entry = hud_target_rows[line]}
+            return true
+        elseif settings.wiki_links and line and hud_link_rows[line] then
             pending_link = {line = line, url = hud_link_rows[line]}
             return true
         elseif line and line <= 2 then
@@ -830,7 +919,12 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
         alert_text:pos(x - hud_drag.x, y - hud_drag.y)
         return true
     elseif type == 2 then
-        if pending_link then
+        if pending_target then
+            local target = pending_target
+            pending_target = nil
+            if line == target.line then target_nearby_mob(target.entry) end
+            return true
+        elseif pending_link then
             local link = pending_link
             pending_link = nil
             if line == link.line then windower.open_url(link.url) end

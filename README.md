@@ -39,8 +39,12 @@ example, Leaping Lizzy uses `0x17C` and `0x190` in South Gustaberg, and NMWatch
 includes both. Use `//nmw wiki` to disable or enable the name fallback.
 
 The addon scans only active, targetable monsters within the configured radius.
-It alerts once while a matching entity remains alive and in range, then can
-alert again after that entity disappears or dies.
+It alerts for bundled NMs, placeholders, and ordinary monsters with notable
+equipment drops. An entity can alert again after it disappears or dies. To
+avoid sound/chat spam from groups of identical ordinary monsters, only the first
+new instance of each drop-mob name is announced per scan. The nearest instances
+appear in `Nearby`, up to the configured HUD limit, and can be clicked
+individually.
 
 The HUD always lists the bundled NMs for the current zone, labels each as
 `timed`, `lottery`, `forced/quest`, `fished`, or `special`, and displays the
@@ -48,7 +52,8 @@ wiki's detailed spawn instruction. This includes placeholders, coordinates,
 maps, timers, trade items, weather, and event conditions when documented.
 Nearby matches appear above the zone list. Nearby rows include distance,
 compass direction, and world X/Y/Z coordinates. Selected known NMs and
-placeholders are highlighted separately from unrelated targets.
+placeholders are highlighted separately from unrelated targets. Left-click a
+Nearby row to target that exact mob, including when several mobs share a name.
 
 ## Widescan placeholders
 
@@ -81,6 +86,11 @@ widescan replaces them, the player changes zones, or `//nmw wsclear` is used.
 Each zone NM also displays a `Drops:` section populated from the BG Wiki
 Treasure field. Entries without a usable Treasure field say
 `None documented on BG Wiki.` rather than guessing.
+Zones with notable equipment from ordinary monsters also display a
+separate `Normal mob equipment drops` section with the monster level range,
+name, documented special spawn conditions, and notable equipment. Mob names are
+clickable when wiki links are enabled. Nearby matches are labeled `[drop]` and
+use a distinct `DROP MOB FOUND` alert.
 Each NM row shows `Last seen` and distance to the last known spot when the
 mob was detected within the previous 24 hours. Older or missing sightings are
 hidden.
@@ -92,9 +102,9 @@ HUD colors are used as follows:
 - Gold: documented drops.
 - Green/red circles: active/inactive Records of Eminence objectives.
 
-The panel uses a translucent background. A newly detected NM's nearby line is
-shown in red with its location/index and distance; the red alert text clears
-when the matching mob disappears.
+The panel uses a translucent background. A newly detected NM, placeholder, or
+drop mob's nearby line is shown in red with its location/index and distance; the
+red alert text clears when the matching mob disappears.
 
 NMs with a matching Records of Eminence kill objective have a colored circle:
 
@@ -150,6 +160,9 @@ from displaying the wrong coordinates.
 `drops.lua` contains BG Wiki's documented Treasure drops for the same 447
 zone/name combinations. The HUD shows `None documented on BG Wiki.` when the
 page has no usable Treasure entry.
+`normal_drops.lua` contains zone-specific ordinary-monster equipment drops from
+the [FFXIclopedia community guide](https://ffxiclopedia.fandom.com/wiki/Uncraftable_equipment_drops_from_normal_monsters).
+Regional rows are expanded to each applicable present-day zone.
 `roe_nms.lua` maps the 82 bundled NMs with known Records of Eminence kill
 objectives to their objective IDs.
 
