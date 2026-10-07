@@ -54,7 +54,8 @@ placeholders are highlighted separately from unrelated targets.
 
 NMWatch also captures native widescan results without replacing nearby mob
 scanning. Use `//nmw ws` to print the captured entries in a copyable form, or
-`//nmw wsclear` to clear them. Duplicate names are numbered in widescan order.
+`//nmw wsclear` or right-click the Widescan HUD heading to clear them. Duplicate
+names are numbered in widescan order.
 
 For documented ordered placeholder groups, NMWatch marks the likely
 placeholder and starts native widescan tracking. Tracking first follows the

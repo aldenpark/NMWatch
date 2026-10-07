@@ -77,21 +77,35 @@ local active_roe = {}
 local completed_roe = {}
 local hud_link_rows = {}
 local hud_line_count = 0
+local widescan_header_line
 local hud_drag = nil
 local pending_link = nil
+local pending_widescan_clear
+
+-- Keep the last useful widescan visible until a new nonempty scan replaces it.
+-- A scan is ordered data: duplicate numbering and placeholder rules both depend
+-- on preserving the exact packet order in widescan_entries.
 local widescan_entries = {}
 local widescan_counts = {}
+-- FFXI can natively track only one widescan row, even though NMWatch may mark
+-- several NMs and placeholders from the same scan.
 local widescan_track
+-- Start/reset packets arrive before mob rows. Deferring the clear until the
+-- first mob preserves the old list when a scan returns no results.
 local widescan_scan_pending = false
 local annotate_widescan
 local zone_info
 local chat
 
 local function clear_widescan()
+    -- Centralize every piece of scan and HUD interaction state so zone changes,
+    -- explicit clears, and nonempty replacement scans cannot leave stale rows.
     widescan_entries = {}
     widescan_counts = {}
     widescan_track = nil
     widescan_scan_pending = false
+    widescan_header_line = nil
+    pending_widescan_clear = nil
 end
 
 local wiki_page_overrides = {
@@ -140,6 +154,8 @@ local function update_widescan_mob(data)
     local name = mob.Name:gsub('%z.*', '')
     if name == '' then return end
     if widescan_scan_pending then
+        -- This is the first result of a new scan, so replacing the old list is
+        -- safe. An empty scan never reaches this branch and retains old data.
         clear_widescan()
     end
     widescan_counts[name] = (widescan_counts[name] or 0) + 1
@@ -166,6 +182,8 @@ end
 annotate_widescan = function()
     local zone_id = zone_info()
     widescan_track = nil
+    -- Rules describe positions in the native widescan list, not physical
+    -- distance between mobs. Record each entry's absolute list position once.
     local scan_position = {}
     for position, entry in ipairs(widescan_entries) do
         scan_position[entry] = position
@@ -206,8 +224,12 @@ annotate_widescan = function()
         end
         local groups = {}
         if rule.scope == 'scan' then
+            -- Scan-scoped rules count every matching name between optional
+            -- anchor rows, even when other mob names appear between matches.
             table.insert(groups, {entries = candidates})
         else
+            -- Group rules split only when another widescan row interrupts the
+            -- matching names. Map offsets are intentionally not used here.
             local group
             for _, entry in ipairs(candidates) do
                 local previous = group and group.entries[#group.entries]
@@ -226,6 +248,8 @@ annotate_widescan = function()
             if wanted_occurrence == 'first' then wanted_occurrence = 1 end
             if wanted_occurrence == 'last' then wanted_occurrence = #group.entries end
             for occurrence, entry in ipairs(group.entries) do
+                -- "Group of N" is exact. Treating N as a minimum can select a
+                -- similarly named mob from a different widescan grouping.
                 if occurrence == wanted_occurrence
                     and (not rule.group_occurrence or group_number == rule.group_occurrence)
                     and (not rule.group_size or #group.entries == rule.group_size)
@@ -236,6 +260,8 @@ annotate_widescan = function()
             end
         end
     end
+    -- Prefer an actual NM for the game's one native tracking slot. Every other
+    -- marked row remains available to the HUD and nearby scanner below.
     for _, entry in ipairs(widescan_entries) do
         if entry.tracked_nm then
             widescan_track = entry
@@ -264,9 +290,12 @@ end
 local function update_widescan_track(data)
     local track = packets.parse('incoming', data)
     if track and (track.Status == 2 or track.Status == 'Reset (zone)') then
+        -- The Windower zone-change event owns clearing. Packet reset alone can
+        -- also occur while useful results should remain displayed.
         return
     end
     if track and (track.Status == 3 or track.Status == 'Reset (new scan)') then
+        -- Do not clear yet: the new scan may be empty.
         widescan_scan_pending = true
         return
     end
@@ -281,6 +310,8 @@ local function update_widescan_mark(data)
     if mark.Type == 1 or mark.Type == 'Start' then
         widescan_scan_pending = true
     elseif mark.Type == 2 or mark.Type == 'End' then
+        -- The first mob clears pending while replacing the list. If pending is
+        -- still true, this was an empty scan and the previous annotations stay.
         if not widescan_scan_pending then annotate_widescan() end
         widescan_scan_pending = false
     end
@@ -340,6 +371,8 @@ local function relative_direction(player, mob)
 end
 
 local function matched_widescan_entry(index)
+    -- Native tracking exposes coordinates for one row, but nearby matching must
+    -- recognize every NM and placeholder identified in the captured scan.
     for _, entry in ipairs(widescan_entries) do
         if entry.index == index and (entry.tracked_nm or entry.placeholder_for) then
             return entry
@@ -420,6 +453,8 @@ local function scan()
         end
         local known_placeholder = nm_data.placeholder_ids[zone_id]
             and nm_data.placeholder_ids[zone_id][mob and mob.index]
+        -- A widescan-derived placeholder can have a normal mob spawn type and
+        -- no fixed placeholder ID, so its captured index must opt it into scan().
         local tracked_widescan = mob and matched_widescan_entry(mob.index)
         if mob and mob.id and mob.id > 0 and mob.index
             and (mob.spawn_type == 16 or known_placeholder or tracked_widescan)
@@ -527,6 +562,7 @@ local function update_hud()
     local target_lines = {}
     local alert_lines = {}
     hud_link_rows = {}
+    widescan_header_line = nil
     local lines = {
         ('%-42s%s'):format(('NMWatch %s  range=%dy'):format(state, settings.range), string.rep(' ', #zone_name)),
     }
@@ -623,9 +659,14 @@ local function update_hud()
 
     if #widescan_entries > 0 then
         table.insert(lines, 'Widescan (map offsets):')
+        -- Store the rendered row because wrapped NM details make its absolute
+        -- position vary by zone. Mouse handling uses this exact row later.
+        widescan_header_line = #lines
         local ordinary_shown = 0
         for _, entry in ipairs(widescan_entries) do
             local flagged = entry.placeholder_for or entry.tracked_nm
+            -- The configured limit applies only to ordinary rows. Always show
+            -- every discovered NM and placeholder, without duplicating entries.
             if flagged or ordinary_shown < settings.hud.max_shown then
                 if not flagged then ordinary_shown = ordinary_shown + 1 end
                 local label = ('  %s #%d [0x%03X]'):format(
@@ -708,9 +749,26 @@ end
 windower.register_event('mouse', function(type, x, y, delta, blocked)
     if not settings.hud.visible then return end
     local line = hud_line_at(x, y)
-    if blocked and not (settings.wiki_links and line and hud_link_rows[line]) then return end
+    local interactive_line = line and ((settings.wiki_links and hud_link_rows[line])
+        or line == widescan_header_line)
+    if blocked and not interactive_line then return end
 
-    if type == 1 then
+    -- Windower mouse types 4 and 5 are right-button down and up. Require both
+    -- events on the heading so a drag or release elsewhere cannot clear data.
+    if type == 4 then
+        if line and line == widescan_header_line then
+            pending_widescan_clear = line
+            return true
+        end
+    elseif type == 5 and pending_widescan_clear then
+        local clear = line == pending_widescan_clear
+        pending_widescan_clear = nil
+        if clear then
+            clear_widescan()
+            chat('widescan results cleared')
+        end
+        return true
+    elseif type == 1 then
         if settings.wiki_links and line and hud_link_rows[line] then
             pending_link = {line = line, url = hud_link_rows[line]}
             return true
