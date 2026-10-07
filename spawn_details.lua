@@ -21,7 +21,7 @@ return {
     },
     ["batallia downs"] = {
         ["Ahtu"] = "Timed: 2-4 hrs. at (J-11)", ["Eyegouger"] = "Ba (I-8)~(J-8)",
-        ["Lumber Jack"] = "Spawns after Weeping Willow at (E-5) is defeated.", ["Tottering Toby"] = "Stalking Sapling at (G-6/7)",
+        ["Lumber Jack"] = "Spawns after Weeping Willow at (E-5) is defeated.", ["Tottering Toby"] = "Lottery spawn off of Stalking Sapling at (G-6/7), occasionally as far as (G-5). On widescan, the placeholder is the first sapling in the first pair of three groups.",
         ["Weeping Willow"] = "Timed spawn every 21-24 hours at (E-5) by the Aged Arbor.",
     },
     ["batallia downs [s]"] = {
@@ -44,7 +44,7 @@ return {
         ["Emergent Elm"] = "Lottery spawn off of Olden Treant at (G-6) - (H-7)",
     },
     ["bibiki bay"] = {
-        ["Intulo"] = "Spawn off of Eft at (H-7) - (I-7).", ["Serra"] = "Lottery spawn off of Jagil at (F-9)",
+        ["Intulo"] = "Lottery spawn off of Eft at (H-7) - (I-7). On widescan, the placeholder is the sole Eft below three Ravens and above two Marine Dhalmels.", ["Serra"] = "Lottery spawn off of Jagil at (F-9)",
         ["Shen"] = "Trade Shrimp Lantern to the ??? at (J-9)", ["Splacknuck"] = "Tartarus Eft (F-6)",
     },
     ["bostaunieux oubliette"] = {
@@ -66,7 +66,7 @@ return {
     },
     ["carpenters' landing"] = {
         ["Hercules Beetle"] = "Forced spawn by trading a Honey to the three ??? at (G-7) between 22:00 and 4:00. The NM may spawn after checking the ??? again after 4:00.", ["Mycophile"] = "Forced spawn by trading (ALL 3) a Danceshroom, Sleepshroom and Woozyshroom to the ??? at (I-11).",
-        ["Orctrap"] = "Birdtrap (I-10).",
+        ["Orctrap"] = "Lottery spawn off of Birdtrap around (I-9) - (I-10) on Map 1. On widescan, the placeholder is the first Birdtrap after the last Sabertooth Tiger.",
     },
     ["castle oztroja"] = {
         ["Mee Deggi the Punisher"] = "1-3 hour respawn", ["Moo Ouzi the Swiftblade"] = "Yagudo Theologist at (H/I-9) Map 1.",
@@ -150,7 +150,7 @@ return {
         ["Ix'aern (MNK)"] = "Trade 1-3 High-Quality Aern Organs to the ??? (G-7) or (I-7) in the basement.", ["Jailer of Temperance"] = "Lottery spawn off of Eo'zdei at (H-4), (C-8), (M-8), (J-13) or (F-13), will spawn immediately upon defeat of correct Eo'zdei",
     },
     ["grauberg [s]"] = {
-        ["Dark Ixion"] = "Every 20-24 Hours. Claim with a Stygian Ash.", ["Scitalis"] = "Ajattara at (F-9)",
+        ["Dark Ixion"] = "Every 20-24 Hours. Claim with a Stygian Ash.", ["Scitalis"] = "Lottery spawn off of Ajattara at (F-9). On widescan, the placeholder is the second Ajattara in the first group of two at (H-9).",
     },
     ["gusgen mines"] = {
         ["Aroma Fly"] = "Forced spawn by examining a ??? during your race's RSE week at (I-8) second map, (I-9) or (F-7) third map or (H-8/9) fourth map.", ["Asphyxiated Amsel"] = "Spawns when the siren sounds at 0:00, 1:00 or 2:00 at (G-6)",
@@ -271,7 +271,7 @@ return {
         ["Stinging Sophie"] = "Lottery spawn off of Maneating Hornet at (I-6) - (J-7) on the second or third level of Zegham Hill.",
     },
     ["north gustaberg [s]"] = {
-        ["Gloomanita"] = "From Coppercap at (G/H-6)",
+        ["Gloomanita"] = "Lottery spawn off of Coppercap at (G-6) - (H-6). On widescan, the placeholder is the last Coppercap in the group of five between two Rock Eaters at (H-6).",
     },
     ["oldton movalpolos"] = {
         ["Bugbear Strongman"] = "Bugbear Bondman (I-11)~(J-11)", ["Goblin Wolfman"] = "Trade Goblin Drink to Scrawled Writing (G-13), (I-11), or (I-9)",
@@ -361,7 +361,7 @@ return {
         ["Deadly Dodo"] = "Lottery spawn off of Tabar Beak at (I-6) - (K-6)", ["Roc"] = "Timed spawn every 18 hours or less (after November 5, 2013 patch) at (I-10).",
     },
     ["sauromugue champaign [s]"] = {
-        ["Balam-Quitz"] = "Lottery spawn off of Lynx at (K-7)", ["Hyakinthos"] = "Timed spawn every 90-120 minutes at (H-10).",
+        ["Balam-Quitz"] = "Lottery spawn off of Lynx at (K-7) - (K-8). On widescan, the placeholder is the second of two Lynxes at (K-8), between a Sauromugue Skink and two Hill Lizards.", ["Hyakinthos"] = "Timed spawn every 90-120 minutes at (H-10).",
     },
     ["sea serpent grotto"] = {
         ["Charybdis"] = "Devil Manta (H-11) Map 4", ["Fyuu the Seabellow"] = "Riparian Sahagin (L-11) Map 1.",
@@ -455,7 +455,7 @@ return {
         ["Zoraal Ja's Pkuucha"] = "Lottery spawn off of Lesser Colibri at (I-9)",
     },
     ["west ronfaure"] = {
-        ["Amanita"] = "Every 60-70 minutes (H-7)", ["Fungus Beetle"] = "Lottery spawn off of Scarab Beetle at (G-9) - (H-9)",
+        ["Amanita"] = "Every 60-70 minutes (H-7)", ["Fungus Beetle"] = "Lottery spawn off of Scarab Beetle at (G-9) - (H-9). On widescan, the placeholder is the second beetle in the group of three Scarab Beetles in (H-8).",
         ["Jaggedy-Eared Jack"] = "Lottery spawn off of Forest Hare at (G-9) - (H-9).",
     },
     ["west sarutabaruta"] = {

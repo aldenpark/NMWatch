@@ -7,9 +7,91 @@ return {
         [100] = {[0x126] = "Jaggedy-Eared Jack"}, -- BG Wiki: placeholder ID 126; NM ID 127.
     },
     widescan_placeholders = {
-        [100] = { -- West Ronfaure: Fungus Beetle, second Scarab Beetle in each local group.
+        [2] = { -- Carpenter's Landing, Map 1.
+            {nm = "Orctrap", placeholder_name = "Birdtrap", occurrence = "first",
+                scope = "scan", after = {name = "Sabertooth Tiger", occurrence = "last"},
+                area = "I-9, I-10 (Map 1)"},
+        },
+        [4] = { -- Bibiki Bay: the sole Eft between the Raven and Marine Dhalmel groups.
+            {nm = "Intulo", placeholder_name = "Eft", occurrence = "first", scope = "scan",
+                after = {name = "Raven", occurrence = "last"},
+                before = {name = "Marine Dhalmel", occurrence = "first"}, area = "H-7, I-7"},
+        },
+        [30] = { -- Riverne - Site #A01: last Flamedrake on the scan list.
+            {nm = "Aiatar", placeholder_name = "Flamedrake", occurrence = "last",
+                scope = "scan", area = "G-7"},
+        },
+        [89] = { -- Grauberg [S]: second Ajattara in the first group of two.
+            {nm = "Scitalis", placeholder_name = "Ajattara", occurrence = 2,
+                group_size = 2, group_occurrence = 1, area = "F-9, H-9"},
+        },
+        [91] = { -- Rolanberry Fields [S]: middle Scabrous Slug in the group of three.
+            {nm = "Dyinyinga", placeholder_name = "Scabrous Slug", occurrence = 2,
+                group_size = 3, area = "J-9"},
+        },
+        [98] = { -- Sauromugue Champaign [S]: second of two Lynxes.
+            {nm = "Balam-Quitz", placeholder_name = "Lynx", occurrence = 2,
+                group_size = 2, area = "K-7, K-8"},
+        },
+        [100] = { -- West Ronfaure: scan group at H-8; lottery area G-9/H-9.
             {nm = "Fungus Beetle", placeholder_name = "Scarab Beetle", occurrence = 2,
-                area = "G-9/H-9", radius = 64},
+                group_size = 3, area = "G-9, H-8, H-9, I-9"},
+        },
+        [103] = { -- Valkurm Dunes: first of two Giant Bats in the south tunnel.
+            {nm = "Golden Bat", placeholder_name = "Giant Bat", occurrence = 1,
+                group_size = 2, area = "B-8, C-6, C-7"},
+        },
+        [105] = { -- Batallia Downs: first sapling in the first of three pairs.
+            {nm = "Tottering Toby", placeholder_name = "Stalking Sapling", occurrence = 1,
+                group_size = 2, group_occurrence = 1, area = "G-5, G-6, G-7"},
+        },
+        [106] = { -- North Gustaberg [S]: last Coppercap in the five-Coppercap group.
+            {nm = "Gloomanita", placeholder_name = "Coppercap", occurrence = 5,
+                group_size = 5, area = "G-6, H-6"},
+        },
+        [109] = { -- Pashhow Marshlands: first of five Thread Leeches.
+            {nm = "Bloodpool Vorax", placeholder_name = "Thread Leech", occurrence = 1,
+                group_size = 5, area = "E-5, F-5"},
+        },
+        [114] = { -- Eastern Altepa Desert: first of the two Giant Spiders.
+            {nm = "Dune Widow", placeholder_name = "Giant Spider", occurrence = 1,
+                group_size = 2, area = "G-8"},
+        },
+        [118] = { -- Buburimu Peninsula: fourth Shoal Pugil in the group of four.
+            {nm = "Buburimboo", placeholder_name = "Shoal Pugil", occurrence = 4,
+                group_size = 4, area = "K-7"},
+        },
+        [121] = { -- The Sanctuary of Zi'Tah: lower of two Goobbue Gardeners.
+            {nm = "Keeper of Halidom", placeholder_name = "Goobbue Gardener", occurrence = 2,
+                group_size = 2, area = "J-7"},
+        },
+        [123] = { -- Yuhtunga Jungle: last Young Opo-opo in the group of ten.
+            {nm = "Mischievous Micholas", placeholder_name = "Young Opo-opo", occurrence = 10,
+                group_size = 10, area = "G-9"},
+        },
+        [125] = { -- Western Altepa Desert: second Cactuar on the scan list.
+            {nm = "Cactuar Cantautor", placeholder_name = "Cactuar", occurrence = 2,
+                scope = "scan", area = "F-11, G-11"},
+        },
+        [145] = { -- Giddeus: lower of the two full-time Mendicants.
+            {nm = "Hoo Mjuu the Torrent", placeholder_name = "Yagudo Mendicant",
+                occurrence = 2, group_size = 2, order = "lower", area = "H-10"},
+        },
+        [153] = { -- The Boyahda Tree: bottom Death Cap on the scan list.
+            {nm = "Ellyllon", placeholder_name = "Death Cap", occurrence = "last",
+                scope = "scan", area = "H-11"},
+        },
+        [160] = { -- Den of Rancor: top of the two Tonberry Beleaguerers.
+            {nm = "Bistre-hearted Malberry", placeholder_name = "Tonberry Beleaguerer",
+                occurrence = 1, group_size = 2, area = "E-9, E-10, F-9, F-10"},
+        },
+        [192] = { -- Inner Horutoto Ruins, Map 3: fifth Boggart in the group of six.
+            {nm = "Nocuous Weapon", placeholder_name = "Boggart", occurrence = 5,
+                group_size = 6, area = "I-9 (Map 3)"},
+        },
+        [212] = { -- Gustav Tunnel, Map 2: first Goblin Mercenary on the scan list.
+            {nm = "Wyvernpoacher Drachlox", placeholder_name = "Goblin Mercenary",
+                occurrence = "first", scope = "scan", area = "H-9 (Map 2)"},
         },
     },
     ids = {

@@ -83,9 +83,18 @@ local widescan_entries = {}
 local widescan_counts = {}
 local widescan_track
 local widescan_visible_until = 0
+local widescan_scan_pending = false
 local annotate_widescan
 local zone_info
 local chat
+
+local function clear_widescan()
+    widescan_entries = {}
+    widescan_counts = {}
+    widescan_track = nil
+    widescan_visible_until = 0
+    widescan_scan_pending = false
+end
 
 local wiki_page_overrides = {
     ['Bloodsucker'] = 'Bloodsucker (Notorious Monster)',
@@ -132,6 +141,10 @@ local function update_widescan_mob(data)
     if not mob or not mob.Name then return end
     local name = mob.Name:gsub('%z.*', '')
     if name == '' then return end
+    if widescan_scan_pending then
+        clear_widescan()
+    end
+    widescan_visible_until = os.clock() + 30
     widescan_counts[name] = (widescan_counts[name] or 0) + 1
     table.insert(widescan_entries, {
         name = name,
@@ -148,104 +161,118 @@ local function update_widescan_mob(data)
             local entry = widescan_entries[#widescan_entries]
             entry.placeholder_for = nil
             entry.tracked_nm = nm_name
-            widescan_track = entry
-            if windower.ffxi.wide_scan_track_index then
-                windower.ffxi.wide_scan_track_index(entry.index)
-            end
             break
         end
     end
-    local previous = widescan_entries[#widescan_entries - 1]
-    if normalized_name == 'scarabbeetle' and previous
-        and previous.name:lower():gsub('%s+', '') == 'scarabbeetle' then
-        local entry = widescan_entries[#widescan_entries]
-        entry.placeholder_for = 'Fungus Beetle'
-        entry.area = 'G-9/H-9'
-        widescan_track = entry
-        if chat then chat(('Fungus Beetle placeholder: Scarab Beetle index 0x%03X'):format(entry.index or 0)) end
-        if windower.ffxi.wide_scan_track_index then
-            windower.ffxi.wide_scan_track_index(entry.index)
-        end
-    end
-    -- Do not depend on the widescan end marker; track the placeholder as soon
-    -- as enough entries exist to identify its local group.
-    annotate_widescan()
 end
 
 annotate_widescan = function()
     local zone_id = zone_info()
     widescan_track = nil
+    local scan_position = {}
+    for position, entry in ipairs(widescan_entries) do
+        scan_position[entry] = position
+    end
+    local function anchor_position(anchor)
+        if not anchor then return nil end
+        local positions = {}
+        local anchor_name = anchor.name:lower():gsub('%s+', '')
+        for position, entry in ipairs(widescan_entries) do
+            if entry.name:lower():gsub('%s+', '') == anchor_name then
+                table.insert(positions, position)
+            end
+        end
+        local occurrence = anchor.occurrence
+        if occurrence == 'first' then occurrence = 1 end
+        if occurrence == 'last' then occurrence = #positions end
+        return positions[occurrence or 1]
+    end
     for _, entry in ipairs(widescan_entries) do
         entry.placeholder_for = nil
         entry.area = nil
     end
-    local rules = nm_data.widescan_placeholders[zone_id]
-    if not rules then
-        rules = {{nm = 'Fungus Beetle', placeholder_name = 'Scarab Beetle', occurrence = 2,
-            area = 'G-9/H-9', radius = 64}}
-    end
+    local rules = nm_data.widescan_placeholders[zone_id] or {}
     for _, rule in ipairs(rules) do
         local candidates = {}
+        local after_position = anchor_position(rule.after)
+        local before_position = anchor_position(rule.before)
+        local anchors_ready = (not rule.after or after_position)
+            and (not rule.before or before_position)
         for _, entry in ipairs(widescan_entries) do
-            if entry.name:lower():gsub('%s+', '') == rule.placeholder_name:lower():gsub('%s+', '') then
+            local position = scan_position[entry]
+            if anchors_ready
+                and entry.name:lower():gsub('%s+', '') == rule.placeholder_name:lower():gsub('%s+', '')
+                and (not after_position or position > after_position)
+                and (not before_position or position < before_position) then
                 table.insert(candidates, entry)
             end
         end
         local groups = {}
-        for _, entry in ipairs(candidates) do
+        if rule.scope == 'scan' then
+            table.insert(groups, {entries = candidates})
+        else
             local group
-            for _, existing in ipairs(groups) do
-                local dx = (entry.x_offset or 0) - (existing.x_offset or 0)
-                local dy = (entry.y_offset or 0) - (existing.y_offset or 0)
-                if dx * dx + dy * dy <= (rule.radius or 64)^2 then
-                    group = existing
-                    break
+            for _, entry in ipairs(candidates) do
+                local previous = group and group.entries[#group.entries]
+                local consecutive = previous
+                    and scan_position[entry] == scan_position[previous] + 1
+                if not consecutive then
+                    group = {entries = {}}
+                    table.insert(groups, group)
                 end
+                table.insert(group.entries, entry)
+                entry.group = #groups
             end
-            if not group then
-                group = {entries = {}, x_offset = entry.x_offset, y_offset = entry.y_offset}
-                table.insert(groups, group)
-            end
-            table.insert(group.entries, entry)
-            entry.group = #groups
         end
-        for _, group in ipairs(groups) do
+        for group_number, group in ipairs(groups) do
+            local wanted_occurrence = rule.occurrence
+            if wanted_occurrence == 'first' then wanted_occurrence = 1 end
+            if wanted_occurrence == 'last' then wanted_occurrence = #group.entries end
             for occurrence, entry in ipairs(group.entries) do
-                if occurrence == rule.occurrence then
+                if occurrence == wanted_occurrence
+                    and (not rule.group_occurrence or group_number == rule.group_occurrence)
+                    and (#group.entries >= (rule.group_size or wanted_occurrence)) then
                     entry.placeholder_for = rule.nm
                     entry.area = rule.area
-                    widescan_track = entry
-                    if windower.ffxi.wide_scan_track_index then
-                        windower.ffxi.wide_scan_track_index(entry.index)
-                        if chat then chat(('tracking %s placeholder at widescan index 0x%03X'):format(
-                            rule.nm, entry.index or 0)) end
-                    end
                 end
             end
         end
     end
-    -- Fallback for servers that do not send usable map offsets: the second
-    -- Scarab Beetle in the returned list is still the documented placeholder.
-    local scarabs = {}
     for _, entry in ipairs(widescan_entries) do
-        if entry.name:lower():gsub('%s+', '') == 'scarabbeetle' then table.insert(scarabs, entry) end
+        if entry.tracked_nm then
+            widescan_track = entry
+            break
+        end
     end
-    local already_marked = false
-    for _, entry in ipairs(scarabs) do
-        if entry.placeholder_for then already_marked = true break end
+    if not widescan_track then
+        for _, entry in ipairs(widescan_entries) do
+            if entry.placeholder_for then
+                widescan_track = entry
+                break
+            end
+        end
     end
-    if #scarabs >= 2 and not already_marked then
-        scarabs[2].placeholder_for = 'Fungus Beetle'
-        scarabs[2].area = 'G-9/H-9'
-        widescan_track = scarabs[2]
-        if windower.ffxi.wide_scan_track_index then
-            windower.ffxi.wide_scan_track_index(scarabs[2].index)
+    if widescan_track and windower.ffxi.wide_scan_track_index then
+        windower.ffxi.wide_scan_track_index(widescan_track.index)
+        if chat then
+            local label = widescan_track.tracked_nm
+                or (widescan_track.placeholder_for .. ' placeholder')
+            chat(('tracking %s at widescan index 0x%03X'):format(
+                label, widescan_track.index or 0))
         end
     end
 end
 
 local function update_widescan_track(data)
     local track = packets.parse('incoming', data)
+    if track and (track.Status == 2 or track.Status == 'Reset (zone)') then
+        clear_widescan()
+        return
+    end
+    if track and (track.Status == 3 or track.Status == 'Reset (new scan)') then
+        widescan_scan_pending = true
+        return
+    end
     if track and widescan_track and track.Index == widescan_track.index then
         widescan_track.x, widescan_track.y, widescan_track.z = track.X, track.Y, track.Z
     end
@@ -255,11 +282,10 @@ local function update_widescan_mark(data)
     local mark = packets.parse('incoming', data)
     if not mark then return end
     if mark.Type == 1 or mark.Type == 'Start' then
-        widescan_entries = {}
-        widescan_counts = {}
-        widescan_visible_until = os.clock() + 30
+        widescan_scan_pending = true
     elseif mark.Type == 2 or mark.Type == 'End' then
-        annotate_widescan()
+        if not widescan_scan_pending then annotate_widescan() end
+        widescan_scan_pending = false
     end
 end
 
@@ -317,8 +343,15 @@ local function relative_direction(player, mob)
 end
 
 local function match_mob(mob, zone_id, zone_name)
-    if widescan_track and mob.index == widescan_track.index and widescan_track.placeholder_for then
-        return widescan_track.placeholder_for, match_source(widescan_track.placeholder_for, 'widescan placeholder')
+    if widescan_track and mob.index == widescan_track.index then
+        if widescan_track.tracked_nm then
+            return widescan_track.tracked_nm,
+                match_source(widescan_track.tracked_nm, 'widescan NM')
+        end
+        if widescan_track.placeholder_for then
+            return widescan_track.placeholder_for,
+                match_source(widescan_track.placeholder_for, 'widescan placeholder')
+        end
     end
     local exact_name = custom_name(zone_id, mob.index)
     if exact_name then
@@ -374,6 +407,9 @@ local function scan()
 
     for _, mob in pairs(mobs) do
         if mob and mob.id and mob.id > 0 and mob.index and mob.hpp and mob.hpp <= 0 then
+            if widescan_track and mob.index == widescan_track.index then
+                clear_widescan()
+            end
             local defeated_name = match_mob(mob, zone_id, zone_name)
             if defeated_name and last_seen[zone_name:lower()] then
                 last_seen[zone_name:lower()][defeated_name] = nil
@@ -459,9 +495,7 @@ end
 
 local function update_hud()
     if widescan_visible_until > 0 and os.clock() >= widescan_visible_until then
-        widescan_entries = {}
-        widescan_counts = {}
-        widescan_visible_until = 0
+        clear_widescan()
     end
     if not settings.hud.visible then
         hud:hide()
@@ -503,9 +537,7 @@ local function update_hud()
     if target and target.id and target.id > 0 then
         target_name = match_mob(target, zone_info())
         if widescan_track and target.index == widescan_track.index then
-            widescan_entries = {}
-            widescan_counts = {}
-            widescan_visible_until = 0
+            clear_widescan()
         end
         if not target_name then
             for _, match in pairs(active) do
@@ -561,7 +593,9 @@ local function update_hud()
             if entry.placeholder_for then
                 label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder'
             end
-            if entry.tracked_nm then label = label .. ' -> NM tracked' end
+            if entry.tracked_nm then
+                label = label .. (widescan_track == entry and ' -> NM tracked' or ' -> NM found')
+            end
             if entry.x and player then
                 local dx, dy = entry.x - player.x, entry.y - player.y
                 local distance = math.sqrt(dx * dx + dy * dy)
@@ -572,13 +606,20 @@ local function update_hud()
         end
         for i = settings.hud.max_shown + 1, #widescan_entries do
             local entry = widescan_entries[i]
-            if entry.placeholder_for then
+            if entry.placeholder_for or entry.tracked_nm then
                 local tracked = entry.x and player and (' | %.1fy %s (%.1f, %.1f, %.1f)'):format(
                     math.sqrt((entry.x - player.x)^2 + (entry.y - player.y)^2),
                     relative_direction(player, entry), entry.x, entry.y, entry.z) or ''
-                table.insert(lines, ('  %s #%d [0x%03X] offsets=(%s,%s) -> %s placeholder%s'):format(
+                local label = ('  %s #%d [0x%03X] offsets=(%s,%s)'):format(
                     entry.name, entry.number, entry.index or 0,
-                    tostring(entry.x_offset or '?'), tostring(entry.y_offset or '?'), entry.placeholder_for, tracked))
+                    tostring(entry.x_offset or '?'), tostring(entry.y_offset or '?'))
+                if entry.placeholder_for then
+                    label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder'
+                end
+                if entry.tracked_nm then
+                    label = label .. (widescan_track == entry and ' -> NM tracked' or ' -> NM found')
+                end
+                table.insert(lines, label .. tracked)
             end
         end
     end
@@ -775,6 +816,9 @@ local function list_widescan()
             entry.name, entry.number, entry.index or 0,
             tostring(entry.x_offset or '?'), tostring(entry.y_offset or '?'))
         if entry.placeholder_for then label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder' end
+        if entry.tracked_nm then
+            label = label .. (widescan_track == entry and ' -> NM tracked' or ' -> NM found')
+        end
         chat(label)
     end
 end
@@ -837,8 +881,7 @@ windower.register_event('addon command', function(cmd, ...)
     elseif cmd == 'widescan' or cmd == 'ws' then
         list_widescan()
     elseif cmd == 'wsclear' then
-        widescan_entries = {}
-        widescan_counts = {}
+        clear_widescan()
         chat('widescan results cleared')
     elseif cmd == 'clear' then
         seen = {}
