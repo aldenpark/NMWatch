@@ -1,5 +1,5 @@
 _addon.name = 'NMWatch'
-_addon.version = '1.11.0'
+_addon.version = '1.12.0'
 _addon.author = 'Alden Park'
 _addon.commands = {'nmw', 'nmwatch'}
 
@@ -707,9 +707,15 @@ local function update_hud()
         table.insert(lines, 'Last: ' .. recent[1].name)
     end
 
-    table.insert(lines, 'Zone NMs:')
+    table.insert(lines, 'Zone NMs by lvl:')
+    local longest_nm_name = 0
+    for _, name in ipairs(zone_nms) do
+        longest_nm_name = math.max(longest_nm_name, #name)
+    end
+    local zone_name_padding = math.ceil(longest_nm_name * 1.8) + 6
     for _, name in ipairs(zone_nms) do
         local row_line = #lines + 1
+        local level_prefix = ('  [%s] '):format(nm_data.levels[name] or '?')
         local seen = last_seen[zone_name:lower()] and last_seen[zone_name:lower()][name]
         local seen_label = ''
         if seen and os.time() - seen.time <= 86400 then
@@ -718,9 +724,17 @@ local function update_hud()
             seen_label = ' | Last seen: ' .. os.date('%Y-%m-%d %H:%M:%S', seen.time)
             if distance then seen_label = seen_label .. (' | last spot: %.1fy'):format(distance) end
         end
-        table.insert(lines, ('       %s [%s]%s'):format(
-            name, nm_data.spawn_types[name] or 'unknown', seen_label))
-        if settings.wiki_links then link_lines[row_line] = '       ' .. name end
+        if settings.wiki_links then
+            -- Spaces are narrower than glyphs in Windower's proportional font.
+            -- Reserve one column based on the zone's longest name so every
+            -- white suffix aligns and the column expands for longer names.
+            table.insert(lines, level_prefix .. string.rep(' ', zone_name_padding)
+                .. ('[%s]%s'):format(nm_data.spawn_types[name] or 'unknown', seen_label))
+            link_lines[row_line] = '                ' .. name
+        else
+            table.insert(lines, level_prefix .. ('%s [%s]%s'):format(
+                name, nm_data.spawn_types[name] or 'unknown', seen_label))
+        end
         local objective_id = roe_nms[name]
         if objective_id then
             if active_roe[objective_id] or completed_roe[objective_id] then

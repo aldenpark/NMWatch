@@ -83,7 +83,7 @@ Tracked entries show distance, compass direction, and world X/Y/Z when the
 game returns tracking coordinates. Captured results remain until a new nonempty
 widescan replaces them, the player changes zones, or `//nmw wsclear` is used.
 
-Each zone NM also displays a `Drops:` section populated from the BG Wiki
+Each zone NM displays its level range and a `Drops:` section populated from the BG Wiki
 Treasure field. Entries without a usable Treasure field say
 `None documented on BG Wiki.` rather than guessing.
 Zones with notable equipment from ordinary monsters also display a
