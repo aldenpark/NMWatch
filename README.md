@@ -127,6 +127,7 @@ start or cancel objectives.
 | `//nmw wiki` | Toggle the bundled name fallback |
 | `//nmw links [on\|off]` | Enable or disable clickable BG Wiki NM names |
 | `//nmw hud` | Toggle the HUD |
+| `//nmw pos [x y]` | Show or set the HUD position; negative coordinates are allowed |
 | `//nmw alpha <0-255>` | Set HUD background opacity (`0` transparent, `255` solid) |
 | `//nmw sound` | Toggle sound |
 | `//nmw soundfile <path>` | Set the alert `.wav` |

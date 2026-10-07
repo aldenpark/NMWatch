@@ -1,5 +1,5 @@
 _addon.name = 'NMWatch'
-_addon.version = '1.10.0'
+_addon.version = '1.11.0'
 _addon.author = 'Alden Park'
 _addon.commands = {'nmw', 'nmwatch'}
 
@@ -1160,6 +1160,25 @@ windower.register_event('addon command', function(cmd, ...)
         settings.hud.visible = not settings.hud.visible
         config.save(settings)
         chat('hud ' .. (settings.hud.visible and 'shown' or 'hidden'))
+    elseif cmd == 'pos' then
+        if not args[1] and not args[2] then
+            chat(('hud position = %d, %d'):format(settings.hud.pos.x, settings.hud.pos.y))
+        elseif tonumber(args[1]) and tonumber(args[2]) then
+            local x, y = math.floor(tonumber(args[1])), math.floor(tonumber(args[2]))
+            settings.hud.pos.x, settings.hud.pos.y = x, y
+            hud:pos(x, y)
+            active_icons:pos(x, y)
+            inactive_icons:pos(x, y)
+            link_text:pos(x, y)
+            drop_text:pos(x, y)
+            zone_text:pos(x + 275, y)
+            target_text:pos(x, y)
+            alert_text:pos(x, y)
+            config.save(settings)
+            chat(('hud position = %d, %d'):format(x, y))
+        else
+            chat('usage: //nmw pos <x> <y>')
+        end
     elseif cmd == 'alpha' and tonumber(args[1]) then
         local value = math.floor(tonumber(args[1]))
         if value >= 0 and value <= 255 then
@@ -1177,7 +1196,7 @@ windower.register_event('addon command', function(cmd, ...)
                 tostring(settings.wiki_fallback), tostring(settings.wiki_links), tostring(settings.sound),
                 tostring(settings.hud.visible), settings.hud.bg.alpha))
     elseif cmd == 'help' then
-        chat('on|off|toggle, add, remove, list, clear, range <y>, wiki, links [on|off], hud, alpha <0-255>, sound, soundfile <path>, test [name], status')
+        chat('on|off|toggle, add, remove, list, clear, range <y>, wiki, links [on|off], hud, pos <x> <y>, alpha <0-255>, sound, soundfile <path>, test [name], status')
         chat('widescan|ws, wsclear, phstats [NM name], phreset <NM name|all>')
     else
         chat('unknown command - type //nmw help')
