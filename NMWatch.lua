@@ -10,6 +10,7 @@ local res = require('resources')
 local texts = require('texts')
 local nm_data = require('wiki_nms')
 local roe_nms = require('roe_nms')
+local placeholder_tracker_module = require('placeholder_tracker')
 
 local defaults = {
     enabled = false,
@@ -33,6 +34,10 @@ local defaults = {
 }
 
 local settings = config.load(defaults)
+local placeholder_observations = config.load('data/placeholder_observations.xml', {zones = {}})
+local placeholder_tracker = placeholder_tracker_module.new(
+    placeholder_observations,
+    function(data) config.save(data, 'all') end)
 local hud = texts.new('', settings.hud, settings)
 -- NM rows handle clicks themselves so the header can remain the drag handle.
 hud:draggable(false)
@@ -262,6 +267,19 @@ annotate_widescan = function()
             end
         end
     end
+
+    -- Persist one observation per completed scan. Process actual NMs before
+    -- candidates so post-kill correlation records the stronger NM outcome.
+    local actual_nms = {}
+    local candidates = {}
+    for _, entry in ipairs(widescan_entries) do
+        if entry.tracked_nm then actual_nms[entry.tracked_nm] = true end
+        if entry.placeholder_for and entry.index then
+            table.insert(candidates, {nm = entry.placeholder_for, index = entry.index})
+        end
+    end
+    placeholder_tracker:record_scan(zone_id, actual_nms, candidates, os.time())
+
     -- Prefer an actual NM for the game's one native tracking slot. Every other
     -- marked row remains available to the HUD and nearby scanner below.
     for _, entry in ipairs(widescan_entries) do
@@ -448,6 +466,11 @@ local function scan()
 
     for _, mob in pairs(mobs) do
         if mob and mob.id and mob.id > 0 and mob.index and mob.hpp and mob.hpp <= 0 then
+            local widescan_entry = matched_widescan_entry(mob.index)
+            if widescan_entry and widescan_entry.placeholder_for then
+                placeholder_tracker:mark_killed(
+                    zone_id, widescan_entry.placeholder_for, mob.index, os.time())
+            end
             local defeated_name = match_mob(mob, zone_id, zone_name)
             if defeated_name and last_seen[zone_name:lower()] then
                 last_seen[zone_name:lower()][defeated_name] = nil
@@ -546,7 +569,7 @@ local function update_hud()
         return
     end
 
-    local _, zone_name = zone_info()
+    local zone_id, zone_name = zone_info()
     local zone_nms = nm_data.names[zone_name:lower()] or {}
     local zone_details = nm_data.spawn_details[zone_name:lower()] or {}
     local zone_drops = nm_data.drops[zone_name:lower()] or {}
@@ -673,19 +696,31 @@ local function update_hud()
             -- every discovered NM and placeholder, without duplicating entries.
             if flagged or ordinary_shown < settings.hud.max_shown then
                 if not flagged then ordinary_shown = ordinary_shown + 1 end
-                local label = ('  %s #%d [0x%03X]'):format(
-                    entry.name, entry.number, entry.index or 0)
+                local label
                 if entry.placeholder_for then
-                    label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder'
-                end
-                if entry.tracked_nm then
-                    label = label .. (widescan_track == entry and ' -> NM tracked' or ' -> NM found')
+                    label = ('  %s%s PH [0x%03X]'):format(
+                        widescan_track == entry and '▶ ' or '• ',
+                        entry.placeholder_for, entry.index or 0)
+                elseif entry.tracked_nm then
+                    label = ('  %s%s NM [0x%03X]'):format(
+                        widescan_track == entry and '▶ ' or '• ',
+                        entry.tracked_nm, entry.index or 0)
+                else
+                    label = ('  %s #%d [0x%03X]'):format(
+                        entry.name, entry.number, entry.index or 0)
                 end
                 if entry.x and player then
                     local dx, dy = entry.x - player.x, entry.y - player.y
                     local distance = math.sqrt(dx * dx + dy * dy)
-                    label = label .. (' | %.1fy %s (%.1f, %.1f, %.1f)'):format(
-                        distance, relative_direction(player, entry), entry.x, entry.y, entry.z)
+                    label = label .. (' | %.1fy %s'):format(
+                        distance, relative_direction(player, entry))
+                end
+                if entry.placeholder_for then
+                    local encounters = placeholder_tracker:encounters(
+                        zone_id, entry.placeholder_for, entry.index)
+                    if encounters > 0 then
+                        label = label .. (' | seen %dx'):format(encounters)
+                    end
                 end
                 table.insert(lines, label)
             end
@@ -873,6 +908,59 @@ local function list_widescan()
     end
 end
 
+local function placeholder_stats(name)
+    local zone_id, zone_name = zone_info()
+    local observed = placeholder_tracker:zone_stats(zone_id)
+    if name and name ~= '' then
+        local wanted = name:lower()
+        local filtered = {}
+        for _, nm in ipairs(observed) do
+            if nm.name:lower() == wanted then table.insert(filtered, nm) end
+        end
+        observed = filtered
+    end
+
+    if #observed == 0 then
+        chat(('no placeholder observations for %s'):format(name and name ~= '' and name or zone_name))
+        return
+    end
+
+    for _, nm in ipairs(observed) do
+        chat(('%s: %d candidate encounters'):format(nm.name, nm.encounters))
+        for _, entry in ipairs(nm.ids) do
+            chat(('  0x%03X: %d encounters, %d sightings, %d kills'):format(
+                tonumber(entry.index) or 0,
+                tonumber(entry.encounters) or 0,
+                tonumber(entry.sightings) or 0,
+                tonumber(entry.kills) or 0))
+            chat(('    outcomes: NM followed=%d, placeholder returned=%d'):format(
+                tonumber(entry.nm_followed) or 0,
+                tonumber(entry.placeholder_returned) or 0))
+            if tonumber(entry.first_seen) and tonumber(entry.first_seen) > 0 then
+                chat(('    first=%s last=%s'):format(
+                    os.date('%Y-%m-%d %H:%M:%S', tonumber(entry.first_seen)),
+                    os.date('%Y-%m-%d %H:%M:%S', tonumber(entry.last_seen))))
+            end
+        end
+    end
+end
+
+local function reset_placeholder_stats(name)
+    local zone_id = zone_info()
+    if not name or name == '' then
+        chat('usage: //nmw phreset <NM name|all>')
+        return
+    end
+    if name:lower() == 'all' then
+        placeholder_tracker:reset_stats(zone_id, 'all')
+        chat('all placeholder observations cleared')
+    elseif placeholder_tracker:reset_stats(zone_id, name) then
+        chat(('placeholder observations cleared for %s'):format(name))
+    else
+        chat(('no placeholder observations for %s'):format(name))
+    end
+end
+
 windower.register_event('prerender', function()
     local now = os.clock()
     if settings.enabled and now - last_scan >= settings.scan_interval then
@@ -893,6 +981,7 @@ windower.register_event('zone change', function()
     alert_mob_ids = {}
     alert_mob_names = {}
     last_scan = 0
+    placeholder_tracker:reset_session()
     clear_widescan()
 end)
 
@@ -934,6 +1023,10 @@ windower.register_event('addon command', function(cmd, ...)
     elseif cmd == 'wsclear' then
         clear_widescan()
         chat('widescan results cleared')
+    elseif cmd == 'phstats' then
+        placeholder_stats(table.concat(args, ' '))
+    elseif cmd == 'phreset' then
+        reset_placeholder_stats(table.concat(args, ' '))
     elseif cmd == 'clear' then
         seen = {}
         active = {}
@@ -991,6 +1084,7 @@ windower.register_event('addon command', function(cmd, ...)
                 tostring(settings.hud.visible), settings.hud.bg.alpha))
     elseif cmd == 'help' then
         chat('on|off|toggle, add, remove, list, clear, range <y>, wiki, links [on|off], hud, alpha <0-255>, sound, soundfile <path>, test [name], status')
+        chat('widescan|ws, wsclear, phstats [NM name], phreset <NM name|all>')
     else
         chat('unknown command - type //nmw help')
     end

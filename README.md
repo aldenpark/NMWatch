@@ -57,6 +57,19 @@ scanning. Use `//nmw ws` to print the captured entries in a copyable form, or
 `//nmw wsclear` or right-click anywhere in the Widescan HUD section to clear
 them. Duplicate names are numbered in widescan order.
 
+NMWatch also records the widescan index of each likely placeholder. Consecutive
+scans of the same living candidate add sightings but not encounters. A new ID,
+a later zone visit, or a candidate seen again after death starts a new
+encounter. When NMWatch observes the candidate die nearby, it records whether
+the NM or another placeholder appears next within 15 minutes.
+
+Compact encounter counts appear on placeholder rows, for example
+`Fungus Beetle PH [0x0D2] | 99.8y NW | seen 6x`. Use `//nmw phstats` for the current zone or
+`//nmw phstats Fungus Beetle` for detailed sightings, kills, and outcomes.
+Observations are stored locally in `data/placeholder_observations.xml` and are
+not committed to the repository. Use `//nmw phreset <NM name>` to clear one
+current-zone record or `//nmw phreset all` to clear every observation.
+
 For documented ordered placeholder groups, NMWatch marks the likely
 placeholder and starts native widescan tracking. Tracking first follows the
 placeholder, then switches to the NM if the NM itself appears in widescan, so
@@ -111,6 +124,8 @@ start or cancel objectives.
 | `//nmw test [name]` | Test the chat/HUD/sound alert |
 | `//nmw ws` / `//nmw widescan` | Print captured widescan entries |
 | `//nmw wsclear` | Clear captured widescan entries |
+| `//nmw phstats [NM name]` | Show candidate-ID evidence for the current zone |
+| `//nmw phreset <NM name\|all>` | Clear recorded candidate-ID evidence |
 | `//nmw status` | Show current settings |
 
 ## Data source

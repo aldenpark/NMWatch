@@ -8,7 +8,7 @@
         <enabled>false</enabled>
         <hud>
             <bg>
-                <alpha>100</alpha>
+                <alpha>0</alpha>
                 <blue>0</blue>
                 <green>0</green>
                 <red>0</red>
@@ -55,16 +55,12 @@
         <wiki_links>true</wiki_links>
     </global>
     <yurinde>
+        <enabled>true</enabled>
         <hud>
             <pos>
-                <x>2656</x>
-                <y>267</y>
+                <x>2644</x>
+                <y>291</y>
             </pos>
-            <text>
-                <fonts>
-
-                </fonts>
-            </text>
         </hud>
     </yurinde>
 </settings>
