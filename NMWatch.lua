@@ -1,5 +1,5 @@
 _addon.name = 'NMWatch'
-_addon.version = '1.12.0'
+_addon.version = '1.14.4'
 _addon.author = 'Alden Park'
 _addon.commands = {'nmw', 'nmwatch'}
 
@@ -11,6 +11,7 @@ local texts = require('texts')
 local nm_data = require('wiki_nms')
 local roe_nms = require('roe_nms')
 local placeholder_tracker_module = require('placeholder_tracker')
+local catalog_browser = require('catalog_browser')
 
 local defaults = {
     enabled = false,
@@ -61,6 +62,19 @@ local drop_text = texts.new('', link_settings)
 local zone_text = texts.new('', link_settings)
 local target_text = texts.new('', link_settings)
 local alert_text = texts.new('', link_settings)
+local browser_button = texts.new('', link_settings)
+local browser_settings = icon_settings()
+browser_settings.bg = {red = 0, green = 0, blue = 0, alpha = 220, visible = true}
+browser_settings.text.size = 10
+browser_settings.padding = 6
+local browser_text = texts.new('', browser_settings)
+local browser_overlay_settings = icon_settings()
+browser_overlay_settings.text.size = 10
+browser_overlay_settings.padding = 6
+local browser_section_text = texts.new('', browser_overlay_settings)
+local browser_zone_text = texts.new('', browser_overlay_settings)
+local browser_link_text = texts.new('', browser_overlay_settings)
+local browser_suffix_text = texts.new('', browser_overlay_settings)
 active_icons:color(80, 255, 80)
 inactive_icons:color(255, 80, 80)
 link_text:color(100, 200, 255)
@@ -68,6 +82,10 @@ drop_text:color(255, 210, 80)
 zone_text:color(255, 80, 255)
 target_text:color(210, 150, 255)
 alert_text:color(255, 80, 80)
+browser_button:color(100, 200, 255)
+browser_section_text:color(255, 210, 80)
+browser_zone_text:color(255, 80, 255)
+browser_link_text:color(100, 200, 255)
 local seen = {}
 local active = {}
 local recent = {}
@@ -89,6 +107,32 @@ local hud_drag = nil
 local pending_link = nil
 local pending_target = nil
 local pending_widescan_clear
+local browser_model = catalog_browser.build(nm_data)
+local browser_visible = false
+local browser_offset = 0
+local browser_page_size = 18
+local browser_link_rows = {}
+local pending_browser_link
+
+local function position_browser(hud_x, hud_y)
+    local zone_width = zone_text:extents() or 0
+    browser_button:pos(hud_x + 283 + zone_width, hud_y)
+    local button_x, button_y = browser_button:pos()
+    local _, button_height = browser_button:extents()
+    local browser_width = browser_text:extents() or 0
+    local panel_x = button_x
+    local windower_settings = windower.get_windower_settings
+        and windower.get_windower_settings()
+    local screen_width = windower_settings and windower_settings.ui_x_res
+    if screen_width and panel_x + browser_width > screen_width - 8 then
+        panel_x = math.max(8, hud_x - browser_width - 8)
+    end
+    browser_text:pos(panel_x, button_y + (button_height or 14) + 2)
+    browser_section_text:pos(browser_text:pos())
+    browser_zone_text:pos(browser_text:pos())
+    browser_link_text:pos(browser_text:pos())
+    browser_suffix_text:pos(browser_text:pos())
+end
 
 -- Keep the last useful widescan visible until a new nonempty scan replaces it.
 -- A scan is ordered data: duplicate numbering and placeholder rules both depend
@@ -608,6 +652,12 @@ local function update_hud()
         zone_text:hide()
         target_text:hide()
         alert_text:hide()
+        browser_button:hide()
+        browser_text:hide()
+        browser_section_text:hide()
+        browser_zone_text:hide()
+        browser_link_text:hide()
+        browser_suffix_text:hide()
         return
     end
 
@@ -849,6 +899,7 @@ local function update_hud()
     zone_text:text(table.concat(zone_lines, '\n'))
     target_text:text(table.concat(target_lines, '\n'))
     alert_text:text(table.concat(alert_lines, '\n'))
+    browser_button:text('[Guide]')
     local hud_x, hud_y = hud:pos()
     active_icons:pos(hud_x, hud_y)
     inactive_icons:pos(hud_x, hud_y)
@@ -857,6 +908,35 @@ local function update_hud()
     zone_text:pos(hud_x + 275, hud_y)
     target_text:pos(hud_x, hud_y)
     alert_text:pos(hud_x, hud_y)
+    if browser_visible then
+        local rendered, section_rendered, zone_rendered, link_rendered, suffix_rendered
+        rendered, browser_offset, section_rendered, zone_rendered,
+            link_rendered, browser_link_rows, suffix_rendered = catalog_browser.render(
+                browser_model, browser_offset, browser_page_size, settings.wiki_links)
+        browser_text:text(rendered)
+        browser_section_text:text(section_rendered)
+        browser_zone_text:text(zone_rendered)
+        browser_link_text:text(link_rendered)
+        browser_suffix_text:text(suffix_rendered)
+        browser_text:show()
+        browser_section_text:show()
+        browser_zone_text:show()
+        if settings.wiki_links then
+            browser_link_text:show()
+            browser_suffix_text:show()
+        else
+            browser_link_text:hide()
+            browser_suffix_text:hide()
+        end
+    else
+        browser_link_rows = {}
+        browser_text:hide()
+        browser_section_text:hide()
+        browser_zone_text:hide()
+        browser_link_text:hide()
+        browser_suffix_text:hide()
+    end
+    position_browser(hud_x, hud_y)
     if next(alert_mob_ids) ~= nil then
         alert_text:show()
     else
@@ -871,6 +951,7 @@ local function update_hud()
     drop_text:show()
     zone_text:show()
     target_text:show()
+    browser_button:show()
 end
 
 local function hud_line_at(x, y)
@@ -885,15 +966,62 @@ local function hud_line_at(x, y)
     return math.min(hud_line_count, math.floor((y - hud_y) / (height / hud_line_count)) + 1)
 end
 
+local function text_contains(text, x, y)
+    local text_x, text_y = text:pos()
+    local width, height = text:extents()
+    return width and height and x >= text_x and x <= text_x + width
+        and y >= text_y and y <= text_y + height
+end
+
+local function browser_line_at(y)
+    local _, browser_y = browser_text:pos()
+    local _, height = browser_text:extents()
+    local line_count = browser_page_size + 2
+    if not height or height <= 0 or y < browser_y or y > browser_y + height then return nil end
+    return math.min(line_count, math.floor((y - browser_y) / (height / line_count)) + 1)
+end
+
 windower.register_event('mouse', function(type, x, y, delta, blocked)
     if not settings.hud.visible then return end
+    local over_browser_button = text_contains(browser_button, x, y)
+    local over_browser = browser_visible and text_contains(browser_text, x, y)
+    local browser_line = over_browser and browser_line_at(y)
     local line = hud_line_at(x, y)
     local over_widescan = line and widescan_first_line and widescan_last_line
         and line >= widescan_first_line and line <= widescan_last_line
     local interactive_line = line and (hud_target_rows[line]
         or (settings.wiki_links and hud_link_rows[line])
         or over_widescan)
-    if blocked and not interactive_line and not pending_target then return end
+    if blocked and not interactive_line and not pending_target
+        and not over_browser_button and not over_browser
+    then
+        return
+    end
+
+    if type == 10 and over_browser then
+        local change = delta > 0 and -3 or 3
+        browser_offset = catalog_browser.clamp(
+            browser_model, browser_offset + change, browser_page_size)
+        return true
+    elseif type == 1 and over_browser_button then
+        browser_visible = not browser_visible
+        return true
+    elseif type == 2 and over_browser_button then
+        return true
+    elseif type == 1 and browser_line and browser_link_rows[browser_line] then
+        pending_browser_link = {
+            line = browser_line,
+            url = wiki_url(browser_link_rows[browser_line]),
+        }
+        return true
+    elseif type == 2 and pending_browser_link then
+        local link = pending_browser_link
+        pending_browser_link = nil
+        if browser_line == link.line then windower.open_url(link.url) end
+        return true
+    elseif over_browser and type >= 1 and type <= 5 then
+        return true
+    end
 
     -- Windower mouse types 4 and 5 are right-button down and up. Require both
     -- events in the widescan section so a release elsewhere cannot clear data.
@@ -931,6 +1059,7 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
         zone_text:pos(x - hud_drag.x + 275, y - hud_drag.y)
         target_text:pos(x - hud_drag.x, y - hud_drag.y)
         alert_text:pos(x - hud_drag.x, y - hud_drag.y)
+        position_browser(x - hud_drag.x, y - hud_drag.y)
         return true
     elseif type == 2 then
         if pending_target then
@@ -1109,6 +1238,12 @@ windower.register_event('unload', function()
     hud:hide()
     active_icons:hide()
     inactive_icons:hide()
+    browser_button:hide()
+    browser_text:hide()
+    browser_section_text:hide()
+    browser_zone_text:hide()
+    browser_link_text:hide()
+    browser_suffix_text:hide()
 end)
 
 windower.register_event('addon command', function(cmd, ...)
@@ -1188,6 +1323,7 @@ windower.register_event('addon command', function(cmd, ...)
             zone_text:pos(x + 275, y)
             target_text:pos(x, y)
             alert_text:pos(x, y)
+            position_browser(x, y)
             config.save(settings)
             chat(('hud position = %d, %d'):format(x, y))
         else

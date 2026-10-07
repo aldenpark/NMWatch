@@ -86,6 +86,14 @@ widescan replaces them, the player changes zones, or `//nmw wsclear` is used.
 Each zone NM displays its level range and a `Drops:` section populated from the BG Wiki
 Treasure field. Entries without a usable Treasure field say
 `None documented on BG Wiki.` rather than guessing.
+
+Click `[Guide]` beside the current zone name to open the all-zone guide. It
+groups every bundled NM and notable normal-monster equipment drop by level band
+and zone. Level headings are gold, zone headings are magenta, and mob names use
+the same cyan BG Wiki links as the main HUD. Hover the guide and use the mouse
+wheel to scroll; click `[Guide]`
+again to close it. Long drop lists are shortened to keep the window compact.
+
 Zones with notable equipment from ordinary monsters also display a
 separate `Normal mob equipment drops` section with the monster level range,
 name, documented special spawn conditions, and notable equipment. Mob names are
