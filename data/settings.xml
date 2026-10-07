@@ -58,8 +58,8 @@
         <enabled>true</enabled>
         <hud>
             <pos>
-                <x>2644</x>
-                <y>291</y>
+                <x>100</x>
+                <y>100</y>
             </pos>
         </hud>
     </yurinde>
