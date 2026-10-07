@@ -6,6 +6,12 @@ return {
     placeholder_ids = {
         [100] = {[0x126] = "Jaggedy-Eared Jack"}, -- BG Wiki: placeholder ID 126; NM ID 127.
     },
+    widescan_placeholders = {
+        [100] = { -- West Ronfaure: Fungus Beetle, second Scarab Beetle in each local group.
+            {nm = "Fungus Beetle", placeholder_name = "Scarab Beetle", occurrence = 2,
+                area = "G-9/H-9", radius = 64},
+        },
+    },
     ids = {
         [4] = {[0x02E] = "Serra"},
         [100] = {[0x127] = "Jaggedy-Eared Jack"},

@@ -79,6 +79,13 @@ local hud_link_rows = {}
 local hud_line_count = 0
 local hud_drag = nil
 local pending_link = nil
+local widescan_entries = {}
+local widescan_counts = {}
+local widescan_track
+local widescan_visible_until = 0
+local annotate_widescan
+local zone_info
+local chat
 
 local wiki_page_overrides = {
     ['Bloodsucker'] = 'Bloodsucker (Notorious Monster)',
@@ -120,11 +127,147 @@ local function update_roe(data)
     active_roe = current
 end
 
-local function chat(message)
+local function update_widescan_mob(data)
+    local mob = packets.parse('incoming', data)
+    if not mob or not mob.Name then return end
+    local name = mob.Name:gsub('%z.*', '')
+    if name == '' then return end
+    widescan_counts[name] = (widescan_counts[name] or 0) + 1
+    table.insert(widescan_entries, {
+        name = name,
+        index = mob.Index,
+        number = widescan_counts[name],
+        x_offset = mob['X Offset'],
+        y_offset = mob['Y Offset'],
+    })
+    local normalized_name = name:lower():gsub('%s+', '')
+    local zone_id, zone_name = zone_info()
+    local zone_nms = nm_data.names[zone_name:lower()] or {}
+    for _, nm_name in ipairs(zone_nms) do
+        if normalized_name == nm_name:lower():gsub('%s+', '') then
+            local entry = widescan_entries[#widescan_entries]
+            entry.placeholder_for = nil
+            entry.tracked_nm = nm_name
+            widescan_track = entry
+            if windower.ffxi.wide_scan_track_index then
+                windower.ffxi.wide_scan_track_index(entry.index)
+            end
+            break
+        end
+    end
+    local previous = widescan_entries[#widescan_entries - 1]
+    if normalized_name == 'scarabbeetle' and previous
+        and previous.name:lower():gsub('%s+', '') == 'scarabbeetle' then
+        local entry = widescan_entries[#widescan_entries]
+        entry.placeholder_for = 'Fungus Beetle'
+        entry.area = 'G-9/H-9'
+        widescan_track = entry
+        if chat then chat(('Fungus Beetle placeholder: Scarab Beetle index 0x%03X'):format(entry.index or 0)) end
+        if windower.ffxi.wide_scan_track_index then
+            windower.ffxi.wide_scan_track_index(entry.index)
+        end
+    end
+    -- Do not depend on the widescan end marker; track the placeholder as soon
+    -- as enough entries exist to identify its local group.
+    annotate_widescan()
+end
+
+annotate_widescan = function()
+    local zone_id = zone_info()
+    widescan_track = nil
+    for _, entry in ipairs(widescan_entries) do
+        entry.placeholder_for = nil
+        entry.area = nil
+    end
+    local rules = nm_data.widescan_placeholders[zone_id]
+    if not rules then
+        rules = {{nm = 'Fungus Beetle', placeholder_name = 'Scarab Beetle', occurrence = 2,
+            area = 'G-9/H-9', radius = 64}}
+    end
+    for _, rule in ipairs(rules) do
+        local candidates = {}
+        for _, entry in ipairs(widescan_entries) do
+            if entry.name:lower():gsub('%s+', '') == rule.placeholder_name:lower():gsub('%s+', '') then
+                table.insert(candidates, entry)
+            end
+        end
+        local groups = {}
+        for _, entry in ipairs(candidates) do
+            local group
+            for _, existing in ipairs(groups) do
+                local dx = (entry.x_offset or 0) - (existing.x_offset or 0)
+                local dy = (entry.y_offset or 0) - (existing.y_offset or 0)
+                if dx * dx + dy * dy <= (rule.radius or 64)^2 then
+                    group = existing
+                    break
+                end
+            end
+            if not group then
+                group = {entries = {}, x_offset = entry.x_offset, y_offset = entry.y_offset}
+                table.insert(groups, group)
+            end
+            table.insert(group.entries, entry)
+            entry.group = #groups
+        end
+        for _, group in ipairs(groups) do
+            for occurrence, entry in ipairs(group.entries) do
+                if occurrence == rule.occurrence then
+                    entry.placeholder_for = rule.nm
+                    entry.area = rule.area
+                    widescan_track = entry
+                    if windower.ffxi.wide_scan_track_index then
+                        windower.ffxi.wide_scan_track_index(entry.index)
+                        if chat then chat(('tracking %s placeholder at widescan index 0x%03X'):format(
+                            rule.nm, entry.index or 0)) end
+                    end
+                end
+            end
+        end
+    end
+    -- Fallback for servers that do not send usable map offsets: the second
+    -- Scarab Beetle in the returned list is still the documented placeholder.
+    local scarabs = {}
+    for _, entry in ipairs(widescan_entries) do
+        if entry.name:lower():gsub('%s+', '') == 'scarabbeetle' then table.insert(scarabs, entry) end
+    end
+    local already_marked = false
+    for _, entry in ipairs(scarabs) do
+        if entry.placeholder_for then already_marked = true break end
+    end
+    if #scarabs >= 2 and not already_marked then
+        scarabs[2].placeholder_for = 'Fungus Beetle'
+        scarabs[2].area = 'G-9/H-9'
+        widescan_track = scarabs[2]
+        if windower.ffxi.wide_scan_track_index then
+            windower.ffxi.wide_scan_track_index(scarabs[2].index)
+        end
+    end
+end
+
+local function update_widescan_track(data)
+    local track = packets.parse('incoming', data)
+    if track and widescan_track and track.Index == widescan_track.index then
+        widescan_track.x, widescan_track.y, widescan_track.z = track.X, track.Y, track.Z
+    end
+end
+
+local function update_widescan_mark(data)
+    local mark = packets.parse('incoming', data)
+    if not mark then return end
+    if mark.Type == 1 or mark.Type == 'Start' then
+        widescan_entries = {}
+        widescan_counts = {}
+        widescan_visible_until = os.clock() + 30
+    elseif mark.Type == 2 or mark.Type == 'End' then
+        annotate_widescan()
+    end
+end
+
+chat = function(message)
     windower.add_to_chat(settings.chat_color, '[NMW] ' .. message)
 end
 
-local function zone_info()
+zone_info = function()
     local info = windower.ffxi.get_info()
     local zone_id = info and info.zone
     local zone = zone_id and res.zones[zone_id]
@@ -174,6 +317,9 @@ local function relative_direction(player, mob)
 end
 
 local function match_mob(mob, zone_id, zone_name)
+    if widescan_track and mob.index == widescan_track.index and widescan_track.placeholder_for then
+        return widescan_track.placeholder_for, match_source(widescan_track.placeholder_for, 'widescan placeholder')
+    end
     local exact_name = custom_name(zone_id, mob.index)
     if exact_name then
         return exact_name, match_source(exact_name, 'custom ID')
@@ -235,8 +381,9 @@ local function scan()
         end
         local known_placeholder = nm_data.placeholder_ids[zone_id]
             and nm_data.placeholder_ids[zone_id][mob and mob.index]
+        local tracked_widescan = widescan_track and mob and mob.index == widescan_track.index
         if mob and mob.id and mob.id > 0 and mob.index
-            and (mob.spawn_type == 16 or known_placeholder)
+            and (mob.spawn_type == 16 or known_placeholder or tracked_widescan)
             and mob.hpp and mob.hpp > 0
         then
             local dx = (mob.x or 0) - (player.x or 0)
@@ -311,6 +458,11 @@ local function selected_target()
 end
 
 local function update_hud()
+    if widescan_visible_until > 0 and os.clock() >= widescan_visible_until then
+        widescan_entries = {}
+        widescan_counts = {}
+        widescan_visible_until = 0
+    end
     if not settings.hud.visible then
         hud:hide()
         active_icons:hide()
@@ -347,8 +499,14 @@ local function update_hud()
     zone_lines[1] = zone_name
 
     local target = selected_target()
+    local target_name
     if target and target.id and target.id > 0 then
-        local target_name = match_mob(target, zone_info())
+        target_name = match_mob(target, zone_info())
+        if widescan_track and target.index == widescan_track.index then
+            widescan_entries = {}
+            widescan_counts = {}
+            widescan_visible_until = 0
+        end
         if not target_name then
             for _, match in pairs(active) do
                 if match.id == target.id then
@@ -366,6 +524,14 @@ local function update_hud()
 
     if #active_list > 0 then
         table.insert(lines, ('Nearby (%d):'):format(#active_list))
+    end
+    if #active_list == 0 and target and target_name and target.x and player then
+        local dx, dy, dz = target.x - player.x, target.y - player.y, (target.z or 0) - (player.z or 0)
+        local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+        table.insert(lines, 'Nearby (1):')
+        table.insert(lines, ('  %s [0x%03X] %.1fy %s (%.1f, %.1f, %.1f)'):format(
+            target_name, target.index or 0, distance, relative_direction(player, target),
+            target.x, target.y, target.z or 0))
     end
     for i = 1, math.min(#active_list, settings.hud.max_shown) do
         local match = active_list[i]
@@ -385,6 +551,35 @@ local function update_hud()
                 match.x or 0, match.y or 0, match.z or 0)
             table.insert(lines, nearby_line)
             alert_lines[#lines] = nearby_line
+        end
+    end
+    if #widescan_entries > 0 then
+        table.insert(lines, 'Widescan (map offsets):')
+        for i = 1, math.min(#widescan_entries, settings.hud.max_shown) do
+            local entry = widescan_entries[i]
+            local label = ('  %s #%d [0x%03X]'):format(entry.name, entry.number, entry.index or 0)
+            if entry.placeholder_for then
+                label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder'
+            end
+            if entry.tracked_nm then label = label .. ' -> NM tracked' end
+            if entry.x and player then
+                local dx, dy = entry.x - player.x, entry.y - player.y
+                local distance = math.sqrt(dx * dx + dy * dy)
+                label = label .. (' | %.1fy %s (%.1f, %.1f, %.1f)'):format(
+                    distance, relative_direction(player, entry), entry.x, entry.y, entry.z)
+            end
+            table.insert(lines, label)
+        end
+        for i = settings.hud.max_shown + 1, #widescan_entries do
+            local entry = widescan_entries[i]
+            if entry.placeholder_for then
+                local tracked = entry.x and player and (' | %.1fy %s (%.1f, %.1f, %.1f)'):format(
+                    math.sqrt((entry.x - player.x)^2 + (entry.y - player.y)^2),
+                    relative_direction(player, entry), entry.x, entry.y, entry.z) or ''
+                table.insert(lines, ('  %s #%d [0x%03X] offsets=(%s,%s) -> %s placeholder%s'):format(
+                    entry.name, entry.number, entry.index or 0,
+                    tostring(entry.x_offset or '?'), tostring(entry.y_offset or '?'), entry.placeholder_for, tracked))
+            end
         end
     end
     if #active_list == 0 and #recent > 0 then
@@ -569,6 +764,21 @@ local function list_ids()
     if count == 0 then chat('  none') end
 end
 
+local function list_widescan()
+    if #widescan_entries == 0 then
+        chat('no widescan results captured')
+        return
+    end
+    chat(('widescan results (%d):'):format(#widescan_entries))
+    for _, entry in ipairs(widescan_entries) do
+        local label = ('  %s #%d [0x%03X] offsets=(%s,%s)'):format(
+            entry.name, entry.number, entry.index or 0,
+            tostring(entry.x_offset or '?'), tostring(entry.y_offset or '?'))
+        if entry.placeholder_for then label = label .. ' -> ' .. entry.placeholder_for .. ' placeholder' end
+        chat(label)
+    end
+end
+
 windower.register_event('prerender', function()
     local now = os.clock()
     if settings.enabled and now - last_scan >= settings.scan_interval then
@@ -593,6 +803,9 @@ end)
 
 windower.register_event('incoming chunk', function(id, data)
     if id == 0x111 then update_roe(data) end
+    if id == 0x0F4 then update_widescan_mob(data) end
+    if id == 0x0F5 then update_widescan_track(data) end
+    if id == 0x0F6 then update_widescan_mark(data) end
 end)
 
 windower.register_event('load', function()
@@ -621,6 +834,12 @@ windower.register_event('addon command', function(cmd, ...)
         remove_target()
     elseif cmd == 'list' then
         list_ids()
+    elseif cmd == 'widescan' or cmd == 'ws' then
+        list_widescan()
+    elseif cmd == 'wsclear' then
+        widescan_entries = {}
+        widescan_counts = {}
+        chat('widescan results cleared')
     elseif cmd == 'clear' then
         seen = {}
         active = {}

@@ -46,7 +46,23 @@ The HUD always lists the bundled NMs for the current zone, labels each as
 `timed`, `lottery`, `forced/quest`, `fished`, or `special`, and displays the
 wiki's detailed spawn instruction. This includes placeholders, coordinates,
 maps, timers, trade items, weather, and event conditions when documented.
-Nearby matches appear above the zone list.
+Nearby matches appear above the zone list. Nearby rows include distance,
+compass direction, and world X/Y/Z coordinates. Selected known NMs and
+placeholders are highlighted separately from unrelated targets.
+
+## Widescan placeholders
+
+NMWatch also captures native widescan results without replacing nearby mob
+scanning. Use `//nmw ws` to print the captured entries in a copyable form, or
+`//nmw wsclear` to clear them. Duplicate names are numbered in widescan order.
+
+For documented ordered placeholder groups, NMWatch marks the likely
+placeholder and starts native widescan tracking. Tracking first follows the
+placeholder, then switches to the NM if the NM itself appears in widescan, so
+the target can still be followed beyond the normal 50-yalm nearby range.
+Tracked entries show distance, compass direction, and world X/Y/Z when the
+game returns tracking coordinates. Widescan results expire after 30 seconds or
+when the tracked entry is selected.
 
 Each zone NM also displays a `Drops:` section populated from the BG Wiki
 Treasure field. Entries without a usable Treasure field say
@@ -92,6 +108,8 @@ start or cancel objectives.
 | `//nmw soundfile <path>` | Set the alert `.wav` |
 | `//nmw clear` | Clear current detection history, not saved IDs |
 | `//nmw test [name]` | Test the chat/HUD/sound alert |
+| `//nmw ws` / `//nmw widescan` | Print captured widescan entries |
+| `//nmw wsclear` | Clear captured widescan entries |
 | `//nmw status` | Show current settings |
 
 ## Data source
