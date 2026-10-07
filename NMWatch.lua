@@ -77,7 +77,8 @@ local active_roe = {}
 local completed_roe = {}
 local hud_link_rows = {}
 local hud_line_count = 0
-local widescan_header_line
+local widescan_first_line
+local widescan_last_line
 local hud_drag = nil
 local pending_link = nil
 local pending_widescan_clear
@@ -104,7 +105,8 @@ local function clear_widescan()
     widescan_counts = {}
     widescan_track = nil
     widescan_scan_pending = false
-    widescan_header_line = nil
+    widescan_first_line = nil
+    widescan_last_line = nil
     pending_widescan_clear = nil
 end
 
@@ -562,7 +564,8 @@ local function update_hud()
     local target_lines = {}
     local alert_lines = {}
     hud_link_rows = {}
-    widescan_header_line = nil
+    widescan_first_line = nil
+    widescan_last_line = nil
     local lines = {
         ('%-42s%s'):format(('NMWatch %s  range=%dy'):format(state, settings.range), string.rep(' ', #zone_name)),
     }
@@ -659,9 +662,10 @@ local function update_hud()
 
     if #widescan_entries > 0 then
         table.insert(lines, 'Widescan (map offsets):')
-        -- Store the rendered row because wrapped NM details make its absolute
-        -- position vary by zone. Mouse handling uses this exact row later.
-        widescan_header_line = #lines
+        -- Store the rendered section bounds because wrapped NM details make
+        -- their absolute positions vary by zone. Mouse handling uses this
+        -- range so the heading and every displayed mob row are clickable.
+        widescan_first_line = #lines
         local ordinary_shown = 0
         for _, entry in ipairs(widescan_entries) do
             local flagged = entry.placeholder_for or entry.tracked_nm
@@ -686,6 +690,7 @@ local function update_hud()
                 table.insert(lines, label)
             end
         end
+        widescan_last_line = #lines
     end
 
     local green_lines = {}
@@ -749,19 +754,21 @@ end
 windower.register_event('mouse', function(type, x, y, delta, blocked)
     if not settings.hud.visible then return end
     local line = hud_line_at(x, y)
+    local over_widescan = line and widescan_first_line and widescan_last_line
+        and line >= widescan_first_line and line <= widescan_last_line
     local interactive_line = line and ((settings.wiki_links and hud_link_rows[line])
-        or line == widescan_header_line)
+        or over_widescan)
     if blocked and not interactive_line then return end
 
     -- Windower mouse types 4 and 5 are right-button down and up. Require both
-    -- events on the heading so a drag or release elsewhere cannot clear data.
+    -- events in the widescan section so a release elsewhere cannot clear data.
     if type == 4 then
-        if line and line == widescan_header_line then
-            pending_widescan_clear = line
+        if over_widescan then
+            pending_widescan_clear = true
             return true
         end
     elseif type == 5 and pending_widescan_clear then
-        local clear = line == pending_widescan_clear
+        local clear = over_widescan
         pending_widescan_clear = nil
         if clear then
             clear_widescan()
