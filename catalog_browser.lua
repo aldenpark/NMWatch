@@ -90,7 +90,29 @@ function browser.build(nm_data)
         names[#lines] = entry.name
     end
 
-    return {lines = lines, kinds = kinds, names = names, entry_count = #entries}
+    local max_prefix = 0
+    local max_name = 0
+    local max_line = 0
+    for i, value in ipairs(lines) do
+        max_line = math.max(max_line, #value)
+        local name = names[i]
+        local name_start = name and value:find(name, 1, true)
+        if name_start then
+            max_prefix = math.max(max_prefix, name_start - 1)
+            max_name = math.max(max_name, #name)
+        end
+    end
+    local link_indent = math.ceil(max_prefix * 1.8)
+    local suffix_indent = math.ceil((max_prefix + max_name + 10) * 1.8)
+    return {
+        lines = lines,
+        kinds = kinds,
+        names = names,
+        entry_count = #entries,
+        link_indent = link_indent,
+        suffix_indent = suffix_indent,
+        panel_columns = math.max(50, max_line + 10),
+    }
 end
 
 function browser.clamp(model, offset, page_size)
@@ -107,25 +129,10 @@ function browser.render(model, offset, page_size, show_links)
     }
     local section_lines = {' ', ' '}
     local zone_lines = {' ', ' '}
+    local prefix_lines = {' ', ' '}
     local link_lines = {' ', ' '}
     local suffix_lines = {' ', ' '}
     local link_rows = {}
-    local max_prefix = 0
-    local max_name = 0
-    if show_links then
-        for i = offset + 1, last do
-            local name = model.names[i]
-            local name_start = name and model.lines[i]:find(name, 1, true)
-            if name_start then
-                max_prefix = math.max(max_prefix, name_start - 1)
-                max_name = math.max(max_name, #name)
-            end
-        end
-    end
-    local link_indent = math.ceil(max_prefix * 1.8)
-    -- Leave a generous fixed gutter after the longest visible name. This is
-    -- intentionally wider than the main HUD because guide names vary heavily.
-    local suffix_indent = math.ceil((max_prefix + max_name + 10) * 1.8)
     for i = offset + 1, last do
         local value = model.lines[i]
         local kind = model.kinds[i]
@@ -136,15 +143,15 @@ function browser.render(model, offset, page_size, show_links)
             -- columns keep variable-width names and drop text from colliding.
             local prefix = value:sub(1, name_start - 1)
             local suffix = value:sub(name_start + #name):gsub('^%s+', '')
-            local background_width = suffix_indent + math.ceil(#suffix * 1.8)
-            table.insert(lines, prefix .. string.rep(' ', math.max(1,
-                background_width - #prefix)))
-            table.insert(link_lines, string.rep(' ', link_indent) .. name)
+            table.insert(lines, ' ')
+            table.insert(prefix_lines, prefix)
+            table.insert(link_lines, string.rep(' ', model.link_indent) .. name)
             table.insert(suffix_lines, suffix ~= ''
-                and string.rep(' ', suffix_indent) .. suffix or ' ')
+                and string.rep(' ', model.suffix_indent) .. suffix or ' ')
             link_rows[#lines] = name
         else
             table.insert(lines, kind == 'entry' and value or string.rep(' ', #value))
+            table.insert(prefix_lines, ' ')
             table.insert(link_lines, ' ')
             table.insert(suffix_lines, ' ')
         end
@@ -153,7 +160,8 @@ function browser.render(model, offset, page_size, show_links)
     end
     return table.concat(lines, '\n'), offset,
         table.concat(section_lines, '\n'), table.concat(zone_lines, '\n'),
-        table.concat(link_lines, '\n'), link_rows, table.concat(suffix_lines, '\n')
+        table.concat(link_lines, '\n'), link_rows, table.concat(suffix_lines, '\n'),
+        table.concat(prefix_lines, '\n')
 end
 
 return browser

@@ -1,5 +1,5 @@
 _addon.name = 'NMWatch'
-_addon.version = '1.15.0'
+_addon.version = '1.15.7'
 _addon.author = 'Alden Park'
 _addon.commands = {'nmw', 'nmwatch'}
 
@@ -59,21 +59,25 @@ local link_settings = icon_settings()
 link_settings.flags.bold = settings.hud.flags.bold
 link_settings.flags.italic = settings.hud.flags.italic
 local link_text = texts.new('', link_settings)
+local spawn_text = texts.new('', link_settings)
 local drop_text = texts.new('', link_settings)
 local zone_text = texts.new('', link_settings)
 local target_text = texts.new('', link_settings)
 local alert_text = texts.new('', link_settings)
 local browser_button = texts.new('', link_settings)
-local browser_settings = icon_settings()
-browser_settings.bg = {red = 0, green = 0, blue = 0, alpha = 220, visible = true}
-browser_settings.text.size = 10
-browser_settings.padding = 6
-local browser_text = texts.new('', browser_settings)
 local browser_overlay_settings = icon_settings()
 browser_overlay_settings.text.size = 10
 browser_overlay_settings.padding = 6
+local browser_background_settings = icon_settings()
+browser_background_settings.bg = {red = 0, green = 0, blue = 0, alpha = 220, visible = true}
+browser_background_settings.text.size = 10
+browser_background_settings.text.alpha = 0
+browser_background_settings.padding = 6
+local browser_background_text = texts.new('', browser_background_settings)
+local browser_text = texts.new('', browser_overlay_settings)
 local browser_section_text = texts.new('', browser_overlay_settings)
 local browser_zone_text = texts.new('', browser_overlay_settings)
+local browser_prefix_text = texts.new('', browser_overlay_settings)
 local browser_link_text = texts.new('', browser_overlay_settings)
 local browser_suffix_text = texts.new('', browser_overlay_settings)
 active_icons:color(80, 255, 80)
@@ -115,14 +119,20 @@ local browser_page_size = 18
 local browser_link_rows = {}
 local pending_browser_link
 local auto_selected_id
+local auto_select_attempt_id
+local auto_select_attempt_at = 0
 local target_nearby_mob
+
+local browser_background_lines = {string.rep('0', browser_model.panel_columns)}
+for _ = 2, browser_page_size + 2 do table.insert(browser_background_lines, ' ') end
+browser_background_text:text(table.concat(browser_background_lines, '\n'))
 
 local function position_browser(hud_x, hud_y)
     local zone_width = zone_text:extents() or 0
     browser_button:pos(hud_x + 283 + zone_width, hud_y)
     local button_x, button_y = browser_button:pos()
     local _, button_height = browser_button:extents()
-    local browser_width = browser_text:extents() or 0
+    local browser_width = browser_background_text:extents() or 0
     local panel_x = button_x
     local windower_settings = windower.get_windower_settings
         and windower.get_windower_settings()
@@ -130,9 +140,11 @@ local function position_browser(hud_x, hud_y)
     if screen_width and panel_x + browser_width > screen_width - 8 then
         panel_x = math.max(8, hud_x - browser_width - 8)
     end
-    browser_text:pos(panel_x, button_y + (button_height or 14) + 2)
+    browser_background_text:pos(panel_x, button_y + (button_height or 14) + 2)
+    browser_text:pos(browser_background_text:pos())
     browser_section_text:pos(browser_text:pos())
     browser_zone_text:pos(browser_text:pos())
+    browser_prefix_text:pos(browser_text:pos())
     browser_link_text:pos(browser_text:pos())
     browser_suffix_text:pos(browser_text:pos())
 end
@@ -605,13 +617,24 @@ local function scan()
                 nearest = match
             end
         end
-        if nearest and nearest.id ~= auto_selected_id then
-            if target_nearby_mob(nearest) then auto_selected_id = nearest.id end
+        local selected = windower.ffxi.get_mob_by_target('t')
+        if nearest and selected and selected.id == nearest.id then
+            auto_selected_id = nearest.id
+            auto_select_attempt_id = nil
+        elseif nearest and nearest.id ~= auto_selected_id then
+            local now = os.clock()
+            if auto_select_attempt_id ~= nearest.id or now - auto_select_attempt_at >= 1 then
+                target_nearby_mob(nearest)
+                auto_select_attempt_id = nearest.id
+                auto_select_attempt_at = now
+            end
         elseif not nearest then
             auto_selected_id = nil
+            auto_select_attempt_id = nil
         end
     else
         auto_selected_id = nil
+        auto_select_attempt_id = nil
     end
 end
 
@@ -670,14 +693,17 @@ local function update_hud()
         active_icons:hide()
         inactive_icons:hide()
         link_text:hide()
+        spawn_text:hide()
         drop_text:hide()
         zone_text:hide()
         target_text:hide()
         alert_text:hide()
         browser_button:hide()
+        browser_background_text:hide()
         browser_text:hide()
         browser_section_text:hide()
         browser_zone_text:hide()
+        browser_prefix_text:hide()
         browser_link_text:hide()
         browser_suffix_text:hide()
         return
@@ -698,6 +724,7 @@ local function update_hud()
     local active_marker_lines = {}
     local inactive_marker_lines = {}
     local link_lines = {}
+    local spawn_lines = {}
     local drop_lines = {}
     local zone_lines = {}
     local target_lines = {}
@@ -786,7 +813,7 @@ local function update_hud()
     for _, name in ipairs(zone_nms) do
         longest_nm_name = math.max(longest_nm_name, #name)
     end
-    local zone_name_padding = math.ceil(longest_nm_name * 1.8) + 6
+    local zone_suffix_indent = 16 + math.ceil(longest_nm_name * 1.8) + 8
     for _, name in ipairs(zone_nms) do
         local row_line = #lines + 1
         local level_prefix = ('  [%s] '):format(nm_data.levels[name] or '?')
@@ -799,22 +826,21 @@ local function update_hud()
             if distance then seen_label = seen_label .. (' | last spot: %.1fy'):format(distance) end
         end
         if settings.wiki_links then
-            -- Spaces are narrower than glyphs in Windower's proportional font.
-            -- Reserve one column based on the zone's longest name so every
-            -- white suffix aligns and the column expands for longer names.
-            table.insert(lines, level_prefix .. string.rep(' ', zone_name_padding)
-                .. ('[%s]%s'):format(nm_data.spawn_types[name] or 'unknown', seen_label))
+            table.insert(lines, level_prefix)
             link_lines[row_line] = '                ' .. name
+            spawn_lines[row_line] = string.rep(' ', zone_suffix_indent)
+                .. ('[%s]%s'):format(nm_data.spawn_types[name] or 'unknown', seen_label)
         else
             table.insert(lines, level_prefix .. ('%s [%s]%s'):format(
                 name, nm_data.spawn_types[name] or 'unknown', seen_label))
         end
         local objective_id = roe_nms[name]
         if objective_id then
+            local marker = string.rep(' ', 16 + math.ceil(#name * 1.8) + 2) .. '●'
             if active_roe[objective_id] or completed_roe[objective_id] then
-                active_marker_lines[#lines] = true
+                active_marker_lines[#lines] = marker
             else
-                inactive_marker_lines[#lines] = true
+                inactive_marker_lines[#lines] = marker
             end
         end
         hud_link_rows[#lines] = wiki_url(name)
@@ -904,10 +930,11 @@ local function update_hud()
     local green_lines = {}
     local red_lines = {}
     for i = 1, #lines do
-        green_lines[i] = active_marker_lines[i] and '  ●' or ''
-        red_lines[i] = inactive_marker_lines[i] and '  ●' or ''
+        green_lines[i] = active_marker_lines[i] or ''
+        red_lines[i] = inactive_marker_lines[i] or ''
         -- Keep blank rows non-empty so Windower preserves their vertical spacing.
         link_lines[i] = link_lines[i] or ' '
+        spawn_lines[i] = spawn_lines[i] or ' '
         drop_lines[i] = drop_lines[i] or ' '
         zone_lines[i] = zone_lines[i] or ' '
         target_lines[i] = target_lines[i] or ' '
@@ -919,6 +946,7 @@ local function update_hud()
     active_icons:text(table.concat(green_lines, '\n'))
     inactive_icons:text(table.concat(red_lines, '\n'))
     link_text:text(table.concat(link_lines, '\n'))
+    spawn_text:text(table.concat(spawn_lines, '\n'))
     drop_text:text(table.concat(drop_lines, '\n'))
     zone_text:text(table.concat(zone_lines, '\n'))
     target_text:text(table.concat(target_lines, '\n'))
@@ -928,35 +956,44 @@ local function update_hud()
     active_icons:pos(hud_x, hud_y)
     inactive_icons:pos(hud_x, hud_y)
     link_text:pos(hud_x, hud_y)
+    spawn_text:pos(hud_x, hud_y)
     drop_text:pos(hud_x, hud_y)
     zone_text:pos(hud_x + 275, hud_y)
     target_text:pos(hud_x, hud_y)
     alert_text:pos(hud_x, hud_y)
     if browser_visible then
-        local rendered, section_rendered, zone_rendered, link_rendered, suffix_rendered
+        local rendered, section_rendered, zone_rendered, link_rendered, suffix_rendered,
+            prefix_rendered
         rendered, browser_offset, section_rendered, zone_rendered,
-            link_rendered, browser_link_rows, suffix_rendered = catalog_browser.render(
+            link_rendered, browser_link_rows, suffix_rendered,
+            prefix_rendered = catalog_browser.render(
                 browser_model, browser_offset, browser_page_size, settings.wiki_links)
         browser_text:text(rendered)
         browser_section_text:text(section_rendered)
         browser_zone_text:text(zone_rendered)
+        browser_prefix_text:text(prefix_rendered)
         browser_link_text:text(link_rendered)
         browser_suffix_text:text(suffix_rendered)
+        browser_background_text:show()
         browser_text:show()
         browser_section_text:show()
         browser_zone_text:show()
         if settings.wiki_links then
             browser_link_text:show()
             browser_suffix_text:show()
+            browser_prefix_text:show()
         else
             browser_link_text:hide()
             browser_suffix_text:hide()
+            browser_prefix_text:hide()
         end
     else
         browser_link_rows = {}
+        browser_background_text:hide()
         browser_text:hide()
         browser_section_text:hide()
         browser_zone_text:hide()
+        browser_prefix_text:hide()
         browser_link_text:hide()
         browser_suffix_text:hide()
     end
@@ -972,6 +1009,7 @@ local function update_hud()
     active_icons:show()
     inactive_icons:show()
     if settings.wiki_links then link_text:show() else link_text:hide() end
+    if settings.wiki_links then spawn_text:show() else spawn_text:hide() end
     drop_text:show()
     zone_text:show()
     target_text:show()
@@ -998,8 +1036,8 @@ local function text_contains(text, x, y)
 end
 
 local function browser_line_at(y)
-    local _, browser_y = browser_text:pos()
-    local _, height = browser_text:extents()
+    local _, browser_y = browser_background_text:pos()
+    local _, height = browser_background_text:extents()
     local line_count = browser_page_size + 2
     if not height or height <= 0 or y < browser_y or y > browser_y + height then return nil end
     return math.min(line_count, math.floor((y - browser_y) / (height / line_count)) + 1)
@@ -1008,7 +1046,7 @@ end
 windower.register_event('mouse', function(type, x, y, delta, blocked)
     if not settings.hud.visible then return end
     local over_browser_button = text_contains(browser_button, x, y)
-    local over_browser = browser_visible and text_contains(browser_text, x, y)
+    local over_browser = browser_visible and text_contains(browser_background_text, x, y)
     local browser_line = over_browser and browser_line_at(y)
     local line = hud_line_at(x, y)
     local over_widescan = line and widescan_first_line and widescan_last_line
@@ -1079,6 +1117,7 @@ windower.register_event('mouse', function(type, x, y, delta, blocked)
         active_icons:pos(x - hud_drag.x, y - hud_drag.y)
         inactive_icons:pos(x - hud_drag.x, y - hud_drag.y)
         link_text:pos(x - hud_drag.x, y - hud_drag.y)
+        spawn_text:pos(x - hud_drag.x, y - hud_drag.y)
         drop_text:pos(x - hud_drag.x, y - hud_drag.y)
         zone_text:pos(x - hud_drag.x + 275, y - hud_drag.y)
         target_text:pos(x - hud_drag.x, y - hud_drag.y)
@@ -1242,6 +1281,7 @@ windower.register_event('zone change', function()
     alert_mob_ids = {}
     alert_mob_names = {}
     auto_selected_id = nil
+    auto_select_attempt_id = nil
     last_scan = 0
     placeholder_tracker:reset_session()
     clear_widescan()
@@ -1263,10 +1303,13 @@ windower.register_event('unload', function()
     hud:hide()
     active_icons:hide()
     inactive_icons:hide()
+    spawn_text:hide()
     browser_button:hide()
+    browser_background_text:hide()
     browser_text:hide()
     browser_section_text:hide()
     browser_zone_text:hide()
+    browser_prefix_text:hide()
     browser_link_text:hide()
     browser_suffix_text:hide()
 end)
@@ -1281,6 +1324,7 @@ windower.register_event('addon command', function(cmd, ...)
         if not settings.enabled then
             active = {}
             auto_selected_id = nil
+            auto_select_attempt_id = nil
         end
         chat(settings.enabled and 'enabled' or 'disabled')
     elseif cmd == 'add' then
@@ -1303,6 +1347,7 @@ windower.register_event('addon command', function(cmd, ...)
         active = {}
         recent = {}
         auto_selected_id = nil
+        auto_select_attempt_id = nil
         chat('detection history cleared')
     elseif cmd == 'range' and tonumber(args[1]) and tonumber(args[1]) > 0 then
         settings.range = tonumber(args[1])
@@ -1339,6 +1384,7 @@ windower.register_event('addon command', function(cmd, ...)
             return
         end
         auto_selected_id = nil
+        auto_select_attempt_id = nil
         config.save(settings)
         chat('auto select ' .. (settings.auto_select and 'on' or 'off'))
     elseif cmd == 'sound' then
@@ -1363,6 +1409,7 @@ windower.register_event('addon command', function(cmd, ...)
             active_icons:pos(x, y)
             inactive_icons:pos(x, y)
             link_text:pos(x, y)
+            spawn_text:pos(x, y)
             drop_text:pos(x, y)
             zone_text:pos(x + 275, y)
             target_text:pos(x, y)

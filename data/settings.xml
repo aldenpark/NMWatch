@@ -59,14 +59,9 @@
         <enabled>true</enabled>
         <hud>
             <pos>
-                <x>2597</x>
-                <y>316</y>
+                <x>2652</x>
+                <y>297</y>
             </pos>
-            <text>
-                <fonts>
-
-                </fonts>
-            </text>
         </hud>
     </yurinde>
 </settings>
