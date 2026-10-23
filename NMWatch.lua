@@ -318,10 +318,10 @@ annotate_widescan = function()
             for occurrence, entry in ipairs(group.entries) do
                 -- "Group of N" is exact. Treating N as a minimum can select a
                 -- similarly named mob from a different widescan grouping.
-                if occurrence == wanted_occurrence
+                if (not wanted_occurrence or occurrence == wanted_occurrence)
                     and (not rule.group_occurrence or group_number == rule.group_occurrence)
                     and (not rule.group_size or #group.entries == rule.group_size)
-                    and #group.entries >= wanted_occurrence then
+                    and (not wanted_occurrence or #group.entries >= wanted_occurrence) then
                     entry.placeholder_for = rule.nm
                     entry.area = rule.area
                 end

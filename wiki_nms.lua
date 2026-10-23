@@ -7,6 +7,12 @@ return {
     normal_drops = require('normal_drops'),
     placeholder_ids = {
         [100] = {[0x126] = "Jaggedy-Eared Jack"}, -- BG Wiki: placeholder ID 126; NM ID 127.
+        [115] = {[0x104] = "Numbing Norman"}, -- BG Wiki: placeholder ID 104; NM ID 14C.
+        -- [125] = {[0x0A9] = "Cactuar Cantautor"}, -- BG Wiki: placeholder ID 0A9; NM ID 12A.
+        -- [118] = {[0x16A] = "Helldiver"}, -- BG Wiki: placeholder ID 16A; NM ID 16B.
+        -- [121] = {[0x0D3] = "Goobbue Gardener"}, -- BG Wiki: placeholder ID D3; NM ID D4.
+        -- [123] = {[0x0C9] = "Young Opo-opo"}, -- BG Wiki: placeholder ID C9; NM ID CA.
+        -- [125] = {[0x0A9] = "Cactuar"}, -- BG Wiki: placeholder ID A9; NM ID AA.
     },
     widescan_placeholders = {
         [2] = { -- Carpenter's Landing, Map 1.
@@ -38,6 +44,10 @@ return {
         [100] = { -- West Ronfaure: scan group at H-8; lottery area G-9/H-9.
             {nm = "Fungus Beetle", placeholder_name = "Scarab Beetle", occurrence = 2,
                 group_size = 3, area = "H-8"},
+        },
+        [102] = { -- La Theine Plateau: every Battering Ram can be Lumbering Lambert's placeholder.
+            {nm = "Lumbering Lambert", placeholder_name = "Battering Ram",
+                scope = "scan"},
         },
         [103] = { -- Valkurm Dunes: first of two Giant Bats in the south tunnel.
             {nm = "Golden Bat", placeholder_name = "Giant Bat", occurrence = 1,
